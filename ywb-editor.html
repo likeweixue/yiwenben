@@ -89,6 +89,10 @@
   #preview .yi-link:hover{border-bottom-color:var(--accent);}
   #preview .yi-file{display:inline-block; background:var(--accent-soft); color:var(--accent); border:1px solid var(--accent); border-radius:8px; padding:.4em .8em; text-decoration:none; margin:.2em 0;}
   #preview .yi-fn a,#preview .fn-back{color:var(--accent); text-decoration:none;}
+  #preview .yi-table{border-collapse:collapse; margin:.9em 0; width:100%; font-size:14px; overflow:hidden; border-radius:8px;}
+  #preview .yi-table th,#preview .yi-table td{border:1px solid var(--border-strong); padding:.5em .8em; text-align:left; vertical-align:top;}
+  #preview .yi-table thead th{background:var(--accent-soft); color:var(--text); font-weight:600;}
+  #preview .yi-table tbody tr:nth-child(even){background:var(--panel-2);}
   #preview .yi-footnotes{margin-top:2em; font-size:.9em; color:var(--text-soft);}
   #preview .yi-time{display:inline-block; background:var(--code-bg); border:1px solid var(--border); border-radius:6px; padding:.1em .5em; font-size:.85em; color:var(--text-soft);}
   #preview .toc{background:var(--panel-2); border:1px solid var(--border); border-radius:10px; padding:.8em 1.2em; margin:1em 0; display:inline-block; min-width:200px;}
@@ -179,6 +183,7 @@
           <tr><td>分页</td><td><code>fy</code></td><td>单独一行，虚线分页标记</td></tr>
           <tr><td>目录</td><td><code>ml</code></td><td>自动收集此前所有标题</td></tr>
           <tr><td>时间戳</td><td><code>sj</code></td><td>插入当前时间（随编辑更新）</td></tr>
+          <tr><td>表格</td><td><code>bg 表头1|表头2 bg 行1列1|行1列2 …</code></td><td>一行 = 一个表格；行内用 <code>bg</code> 分隔多行；单元格用 <code>|</code> 分隔；首行自动作为表头</td></tr>
           <tr><td>居左</td><td><code>jzuo</code> + 空格 + 内容</td><td></td></tr>
           <tr><td>居中</td><td><code>jzong</code> + 空格 + 内容</td><td></td></tr>
           <tr><td>居右</td><td><code>jyou</code> + 空格 + 内容</td><td></td></tr>
@@ -207,7 +212,7 @@
     tsk:'tip', hndm:'code', sb:'sup', xb:'sub',
     jzong:'center', jzuo:'left', jyou:'right',
     lj:'link', tplj:'image', splj:'video', yplj:'audio', fjlj:'file', jz:'footnote',
-    wxlb:'ul', yxlb:'ol',
+    wxlb:'ul', yxlb:'ol', bg:'table',
     fgx:'hr', hh:'br', fy:'page', ml:'toc', sj:'time',
     zdnr:'details', dmk:'codeblock'
   };
@@ -286,6 +291,20 @@
           case 'time': out+='<span class="yi-time">'+esc(new Date().toLocaleString('zh-CN'))+'</span>'; break;
           case 'details': inDetails=true; detSummary=rest; break;
           case 'codeblock': inCode=true; codeLang=rest.trim(); break;
+          case 'table': {
+            const rowStrs = rest.split(/\s+bg\s+/).map(r=>r.trim()).filter(r=>r!=='');
+            if(!rowStrs.length) break;
+            let t = '<table class="yi-table">';
+            const headCells = rowStrs[0].split('|').map(c=>'<th>'+esc(c.trim())+'</th>').join('');
+            t += '<thead><tr>'+headCells+'</tr></thead><tbody>';
+            for(let ri=1; ri<rowStrs.length; ri++){
+              const cells = rowStrs[ri].split('|').map(c=>'<td>'+esc(c.trim())+'</td>').join('');
+              t += '<tr>'+cells+'</tr>';
+            }
+            t += '</tbody></table>';
+            out += t;
+            break;
+          }
         }
         continue;
       }
@@ -381,6 +400,10 @@
       +'.toc-lvl-1{padding-left:0;} .toc-lvl-2{padding-left:1em;} .toc-lvl-3{padding-left:2em;} .toc-lvl-4{padding-left:3em;} .toc-lvl-5{padding-left:4em;} .toc-lvl-6{padding-left:5em;}\n'
       +'.yi-details{border:1px solid #e3e8ef;border-radius:10px;padding:.5em .9em;} .yi-details summary{cursor:pointer;font-weight:600;}\n'
       +'.yi-time{background:#f3f5f9;border:1px solid #e3e8ef;border-radius:6px;padding:.1em .5em;font-size:.85em;}\n'
+      +'.yi-table{border-collapse:collapse;margin:.9em 0;width:100%;font-size:14px;overflow:hidden;border-radius:8px;}\n'
+      +'.yi-table th,.yi-table td{border:1px solid #cfd6e0;padding:.5em .8em;text-align:left;vertical-align:top;}\n'
+      +'.yi-table thead th{background:#eaf0ff;font-weight:600;}\n'
+      +'.yi-table tbody tr:nth-child(even){background:#fbfcfe;}\n'
       +'.yi-footnotes{margin-top:2em;font-size:.9em;color:#5b6472;}\n'
       +'</style>\n</head>\n<body>\n'+body+'\n</body>\n</html>';
     download('易文本文档.html', doc, 'text/html;charset=utf-8');
@@ -436,6 +459,10 @@
     '折叠区域里可以放补充说明、长段落或注意事项。',
     '支持多行内容，全部显示在折叠框内。',
     'zdnr',
+    'er 表格',
+    'bg 姓名|年龄|城市 bg 张三|18|北京 bg 李四|22|上海',
+    'bg 水果|单价 bg 苹果|5元',
+    'bg 蔬菜|单价 bg 白菜|2元',
     'fgx',
     'er 目录与时间戳',
     'ml',
