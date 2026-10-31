@@ -183,7 +183,7 @@
           <tr><td>分页</td><td><code>fy</code></td><td>单独一行，虚线分页标记</td></tr>
           <tr><td>目录</td><td><code>ml</code></td><td>自动收集此前所有标题</td></tr>
           <tr><td>时间戳</td><td><code>sj</code></td><td>插入当前时间（随编辑更新）</td></tr>
-          <tr><td>表格</td><td><code>bg 表头1|表头2 bg 行1列1|行1列2 …</code></td><td>一行 = 一个表格；行内用 <code>bg</code> 分隔多行；单元格用 <code>|</code> 分隔；首行自动作为表头</td></tr>
+          <tr><td>表格</td><td><code>bg 单元格1bg 单元格2bg 单元格3</code><br>下一行继续写 <code>bg …</code> 即同一表格的下一行</td><td><code>bg</code> 代表「竖」（单元格分隔），<b>每行 = 表格的一行</b>；连续多行 <code>bg</code> 自动合并成一个表格；空一行再写可另起一个表格；首行自动作为表头</td></tr>
           <tr><td>居左</td><td><code>jzuo</code> + 空格 + 内容</td><td></td></tr>
           <tr><td>居中</td><td><code>jzong</code> + 空格 + 内容</td><td></td></tr>
           <tr><td>居右</td><td><code>jyou</code> + 空格 + 内容</td><td></td></tr>
@@ -212,7 +212,7 @@
     tsk:'tip', hndm:'code', sb:'sup', xb:'sub',
     jzong:'center', jzuo:'left', jyou:'right',
     lj:'link', tplj:'image', splj:'video', yplj:'audio', fjlj:'file', jz:'footnote',
-    wxlb:'ul', yxlb:'ol', bg:'table',
+    wxlb:'ul', yxlb:'ol',
     fgx:'hr', hh:'br', fy:'page', ml:'toc', sj:'time',
     zdnr:'details', dmk:'codeblock'
   };
@@ -234,6 +234,7 @@
     let inCode=false,codeLang='',codeBuf=[];
     let inDetails=false,detSummary='',detBuf=[];
     let listType=null,listBuf=[];
+    let tableBuf=[];
     let headings=[];
     let footnotes=[],fnCount=0;
     let paraBuf=[];
@@ -241,18 +242,38 @@
     function flushList(){ if(listType){ out+='<'+listType+' class="yi-list">'+listBuf.map(li=>'<li>'+esc(li)+'</li>').join('')+'</'+listType+'>'; listType=null; listBuf=[]; } }
     function flushDetails(){ if(inDetails){ out+='<details class="yi-details"><summary>'+esc(detSummary)+'</summary><div class="details-body">'+detBuf.map(esc).join('<br>')+'</div></details>'; inDetails=false; detBuf=[]; } }
     function flushCode(){ if(inCode){ out+='<pre class="yi-codeblock'+(codeLang?' lang-'+esc(codeLang):'')+'"><code>'+esc(codeBuf.join('\n'))+'</code></pre>'; inCode=false; codeBuf=[]; codeLang=''; } }
-    function flushAll(){ flushPara(); flushList(); flushDetails(); flushCode(); }
+    function flushTable(){ if(tableBuf.length){
+      const maxCols=Math.max.apply(null,tableBuf.map(r=>r.length));
+      let t='<table class="yi-table"><thead><tr>';
+      tableBuf[0].forEach(c=>{ t+='<th>'+esc(c)+'</th>'; });
+      t+='</tr></thead><tbody>';
+      for(let ri=1; ri<tableBuf.length; ri++){
+        const row=tableBuf[ri].slice();
+        while(row.length<maxCols) row.push('');
+        t+='<tr>'+row.map(c=>'<td>'+esc(c)+'</td>').join('')+'</tr>';
+      }
+      t+='</tbody></table>'; out+=t; tableBuf=[];
+    } }
+    function flushAll(){ flushPara(); flushList(); flushDetails(); flushCode(); flushTable(); }
     for(let idx=0; idx<lines.length; idx++){
       const raw=lines[idx];
       const line=raw.replace(/\s+$/,'');
       if(inCode){ if(line.trim()==='dmk'){ flushCode(); continue; } codeBuf.push(raw); continue; }
       if(inDetails){ if(line.trim()==='zdnr'){ flushDetails(); continue; } detBuf.push(raw); continue; }
-      if(line.trim()===''){ flushPara(); flushList(); continue; }
+      if(line.trim()===''){ flushPara(); flushList(); flushTable(); continue; }
+      const trimmed=line.trim();
+      if(trimmed==='bg'||trimmed.startsWith('bg ')){
+        flushPara(); flushList();
+        const body=trimmed==='bg'?'':trimmed.slice(3).trim();
+        const cells=body.split(/\s*bg\s*|\|/).map(c=>c.trim()).filter(c=>c!=='');
+        if(cells.length) tableBuf.push(cells);
+        continue;
+      }
       const m=line.match(/^(\S+)\s+([\s\S]*)$/);
       let token=null,rest='';
       if(m){ token=m[1]; rest=m[2]; } else { token=line.trim(); rest=''; }
       if(NUM[token]!==undefined){
-        flushPara(); flushList();
+        flushPara(); flushList(); flushTable();
         const n=NUM[token], lvl=Math.min(n,6), hid='yi-h-'+headings.length;
         headings.push({level:lvl,id:hid,text:rest});
         out+='<h'+lvl+' id="'+hid+'" class="yi-h yi-h'+lvl+'">'+esc(rest)+'</h'+lvl+'>';
@@ -260,7 +281,7 @@
       }
       const type=TOKENS[token];
       if(type){
-        flushPara();
+        flushPara(); flushTable();
         if(type!=='ul'&&type!=='ol') flushList();
         switch(type){
           case 'strong': out+='<p class="yi-strong"><strong>'+esc(rest)+'</strong></p>'; break;
@@ -291,24 +312,11 @@
           case 'time': out+='<span class="yi-time">'+esc(new Date().toLocaleString('zh-CN'))+'</span>'; break;
           case 'details': inDetails=true; detSummary=rest; break;
           case 'codeblock': inCode=true; codeLang=rest.trim(); break;
-          case 'table': {
-            const rowStrs = rest.split(/\s+bg\s+/).map(r=>r.trim()).filter(r=>r!=='');
-            if(!rowStrs.length) break;
-            let t = '<table class="yi-table">';
-            const headCells = rowStrs[0].split('|').map(c=>'<th>'+esc(c.trim())+'</th>').join('');
-            t += '<thead><tr>'+headCells+'</tr></thead><tbody>';
-            for(let ri=1; ri<rowStrs.length; ri++){
-              const cells = rowStrs[ri].split('|').map(c=>'<td>'+esc(c.trim())+'</td>').join('');
-              t += '<tr>'+cells+'</tr>';
-            }
-            t += '</tbody></table>';
-            out += t;
-            break;
-          }
         }
         continue;
       }
       if(listType) flushList();
+      flushTable();
       paraBuf.push(line);
     }
     flushAll();
@@ -460,9 +468,13 @@
     '支持多行内容，全部显示在折叠框内。',
     'zdnr',
     'er 表格',
-    'bg 姓名|年龄|城市 bg 张三|18|北京 bg 李四|22|上海',
-    'bg 水果|单价 bg 苹果|5元',
-    'bg 蔬菜|单价 bg 白菜|2元',
+    'bg 姓名bg 年龄bg 城市',
+    'bg 张三bg 18bg 北京',
+    'bg 李四bg 22bg 上海',
+    'bg 水果bg 单价',
+    'bg 苹果bg 5元',
+    'bg 蔬菜bg 单价',
+    'bg 白菜bg 2元',
     'fgx',
     'er 目录与时间戳',
     'ml',
