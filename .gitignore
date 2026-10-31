@@ -1,0 +1,3 @@
+# WorkBuddy 项目内部数据，不纳入仓库
+.workbuddy/
+.DS_Store

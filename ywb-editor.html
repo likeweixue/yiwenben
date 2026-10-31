@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>易文本编辑器 · 易文本实时预览</title>
+<style>
+  :root{
+    --bg:#f5f7fa; --panel:#ffffff; --panel-2:#fbfcfe; --text:#1f2430; --text-soft:#5b6472;
+    --border:#e3e8ef; --border-strong:#cfd6e0; --accent:#3b6cf6; --accent-soft:#eaf0ff;
+    --code-bg:#f3f5f9; --shadow:0 6px 24px rgba(20,30,60,.08); --radius:14px;
+    --tip-info:#2b6cb0; --tip-warn:#b7791f; --tip-success:#2f855a; --tip-danger:#c53030;
+  }
+  body.dark{
+    --bg:#15181f; --panel:#1d212b; --panel-2:#21262f; --text:#e6e9ef; --text-soft:#9aa3b2;
+    --border:#2c323d; --border-strong:#3a4150; --accent:#5b8cff; --accent-soft:#1f2a44;
+    --code-bg:#11141a; --shadow:0 6px 24px rgba(0,0,0,.35);
+    --tip-info:#63b3ed; --tip-warn:#f6ad55; --tip-success:#68d391; --tip-danger:#fc8181;
+  }
+  *{box-sizing:border-box;}
+  html,body{height:100%;margin:0;}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    background:var(--bg); color:var(--text); display:flex; flex-direction:column; overflow:hidden;
+  }
+  header{
+    flex:0 0 auto; display:flex; align-items:center; gap:10px; padding:10px 16px;
+    background:var(--panel); border-bottom:1px solid var(--border); box-shadow:var(--shadow); z-index:5;
+  }
+  .brand{font-weight:700; font-size:17px; display:flex; align-items:center; gap:8px; margin-right:auto;}
+  .brand .logo{width:26px;height:26px;border-radius:7px;background:linear-gradient(135deg,var(--accent),#8a5bff);display:flex;align-items:center;justify-content:center;color:#fff;font-size:14px;}
+  .toolbar{display:flex; gap:8px; flex-wrap:wrap; align-items:center;}
+  button.tb{
+    border:1px solid var(--border-strong); background:var(--panel-2); color:var(--text);
+    padding:7px 12px; border-radius:10px; cursor:pointer; font-size:13px; transition:.15s;
+    display:inline-flex; align-items:center; gap:6px;
+  }
+  button.tb:hover{border-color:var(--accent); color:var(--accent);}
+  button.tb.primary{background:var(--accent); color:#fff; border-color:var(--accent);}
+  button.tb.primary:hover{filter:brightness(1.05); color:#fff;}
+  button.tb.danger:hover{border-color:var(--tip-danger); color:var(--tip-danger);}
+  .rec-dot{width:8px;height:8px;border-radius:50%;background:#e53e3e;display:inline-block;animation:pulse 1s infinite;}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+  main{flex:1 1 auto; display:flex; min-height:0;}
+  .pane{flex:1 1 50%; min-width:0; display:flex; flex-direction:column; background:var(--panel);}
+  .pane-head{
+    flex:0 0 auto; padding:8px 14px; font-size:12px; color:var(--text-soft);
+    border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;
+    background:var(--panel-2);
+  }
+  #src{
+    flex:1 1 auto; width:100%; border:0; resize:none; outline:none; padding:16px 18px;
+    font-family:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace; font-size:14px; line-height:1.7;
+    background:var(--panel); color:var(--text); tab-size:2;
+  }
+  #preview{flex:1 1 auto; overflow:auto; padding:20px 26px;}
+  .splitter{flex:0 0 6px; cursor:col-resize; background:var(--border); position:relative;}
+  .splitter::after{content:""; position:absolute; left:2px; top:50%; transform:translateY(-50%); width:2px; height:34px; background:var(--border-strong); border-radius:2px;}
+  .splitter:hover{background:var(--accent);}
+  /* preview typography */
+  #preview h1,#preview h2,#preview h3,#preview h4,#preview h5,#preview h6{line-height:1.3; margin:1.1em 0 .5em;}
+  #preview h1{font-size:1.9em; border-bottom:2px solid var(--border); padding-bottom:.25em;}
+  #preview h2{font-size:1.5em; border-bottom:1px solid var(--border); padding-bottom:.2em;}
+  #preview h3{font-size:1.25em;} #preview h4{font-size:1.1em;} #preview h5{font-size:1em;} #preview h6{font-size:.95em;color:var(--text-soft);}
+  #preview p{margin:.6em 0; line-height:1.8;}
+  #preview .yi-quote{border-left:4px solid var(--accent); background:var(--accent-soft); margin:.8em 0; padding:.6em 1em; border-radius:0 8px 8px 0; color:var(--text);}
+  #preview .yi-list{margin:.6em 0 1em; padding-left:1.6em; line-height:1.9;}
+  #preview .yi-list li{margin:.2em 0;}
+  #preview mark{background:#fff3a3; color:inherit; padding:.05em .2em; border-radius:3px;}
+  body.dark #preview mark{background:#7a6a1f; color:#fff;}
+  #preview .yi-codeblock{background:var(--code-bg); border:1px solid var(--border); border-radius:10px; padding:14px 16px; overflow:auto; font-size:13px; line-height:1.6; margin:.8em 0;}
+  #preview .yi-codeblock code{font-family:Consolas,Menlo,monospace; white-space:pre;}
+  #preview .yi-inline-code{background:var(--code-bg); border:1px solid var(--border); border-radius:5px; padding:.1em .4em; font-family:Consolas,Menlo,monospace; font-size:.9em;}
+  #preview .yi-tip{border-radius:10px; padding:.7em 1em; margin:.8em 0; border:1px solid; line-height:1.7;}
+  #preview .yi-tip .tip-label{font-weight:700; margin-right:.5em; padding:.05em .5em; border-radius:5px; font-size:.8em; color:#fff;}
+  #preview .yi-tip-info{background:rgba(43,108,176,.08); border-color:var(--tip-info);} #preview .yi-tip-info .tip-label{background:var(--tip-info);}
+  #preview .yi-tip-success{background:rgba(47,133,90,.08); border-color:var(--tip-success);} #preview .yi-tip-success .tip-label{background:var(--tip-success);}
+  #preview .yi-tip-warn{background:rgba(183,121,31,.08); border-color:var(--tip-warn);} #preview .yi-tip-warn .tip-label{background:var(--tip-warn);}
+  #preview .yi-tip-danger{background:rgba(197,48,48,.08); border-color:var(--tip-danger);} #preview .yi-tip-danger .tip-label{background:var(--tip-danger);}
+  #preview .yi-hr{border:0; border-top:1px solid var(--border-strong); margin:1.4em 0;}
+  #preview .yi-page-break{border-top:2px dashed var(--border-strong); text-align:center; margin:1.6em 0; position:relative;}
+  #preview .yi-page-break span{position:relative; top:-.7em; background:var(--panel); padding:0 10px; color:var(--text-soft); font-size:12px;}
+  #preview .yi-br{height:.6em;}
+  #preview .yi-align.yi-center{text-align:center;} #preview .yi-align.yi-left{text-align:left;} #preview .yi-align.yi-right{text-align:right;}
+  #preview .yi-figure{margin:.8em 0; text-align:center;} #preview .yi-figure img{max-width:100%; border-radius:10px; border:1px solid var(--border);}
+  #preview .yi-figure figcaption{font-size:12px; color:var(--text-soft); margin-top:.4em;}
+  #preview .yi-media{margin:.8em 0;} #preview .yi-media video,#preview .yi-media audio{width:100%;}
+  #preview .yi-link{color:var(--accent); text-decoration:none; border-bottom:1px solid var(--accent-soft);}
+  #preview .yi-link:hover{border-bottom-color:var(--accent);}
+  #preview .yi-file{display:inline-block; background:var(--accent-soft); color:var(--accent); border:1px solid var(--accent); border-radius:8px; padding:.4em .8em; text-decoration:none; margin:.2em 0;}
+  #preview .yi-fn a,#preview .fn-back{color:var(--accent); text-decoration:none;}
+  #preview .yi-footnotes{margin-top:2em; font-size:.9em; color:var(--text-soft);}
+  #preview .yi-time{display:inline-block; background:var(--code-bg); border:1px solid var(--border); border-radius:6px; padding:.1em .5em; font-size:.85em; color:var(--text-soft);}
+  #preview .toc{background:var(--panel-2); border:1px solid var(--border); border-radius:10px; padding:.8em 1.2em; margin:1em 0; display:inline-block; min-width:200px;}
+  #preview .toc-title{font-weight:700; margin-bottom:.4em;}
+  #preview .toc-list{list-style:none; margin:0; padding:0;}
+  #preview .toc-list li{margin:.25em 0;}
+  #preview .toc-lvl-1{padding-left:0;} #preview .toc-lvl-2{padding-left:1em;} #preview .toc-lvl-3{padding-left:2em;}
+  #preview .toc-lvl-4{padding-left:3em;} #preview .toc-lvl-5{padding-left:4em;} #preview .toc-lvl-6{padding-left:5em;}
+  #preview .toc-list a{color:var(--accent); text-decoration:none;}
+  #preview .toc-empty{color:var(--text-soft);}
+  #preview .yi-details{border:1px solid var(--border); border-radius:10px; padding:.5em .9em; margin:.8em 0; background:var(--panel-2);}
+  #preview .yi-details summary{cursor:pointer; font-weight:600;}
+  #preview .details-body{margin-top:.5em; color:var(--text);}
+  /* modal */
+  .overlay{position:fixed; inset:0; background:rgba(0,0,0,.45); display:none; align-items:center; justify-content:center; z-index:50; padding:20px;}
+  .overlay.show{display:flex;}
+  .modal{background:var(--panel); border-radius:16px; max-width:760px; width:100%; max-height:85vh; overflow:auto; box-shadow:var(--shadow); border:1px solid var(--border);}
+  .modal-head{display:flex; justify-content:space-between; align-items:center; padding:16px 20px; border-bottom:1px solid var(--border); position:sticky; top:0; background:var(--panel);}
+  .modal-head h3{margin:0; font-size:16px;}
+  .modal-body{padding:16px 20px;}
+  .close-x{border:0; background:transparent; font-size:22px; cursor:pointer; color:var(--text-soft); line-height:1;}
+  table.cheat{width:100%; border-collapse:collapse; font-size:13px;}
+  table.cheat th,table.cheat td{border:1px solid var(--border); padding:8px 10px; text-align:left; vertical-align:top;}
+  table.cheat th{background:var(--panel-2);}
+  table.cheat code{background:var(--code-bg); border-radius:5px; padding:.1em .4em; font-family:Consolas,Menlo,monospace; color:var(--accent);}
+  .hint{font-size:12px; color:var(--text-soft); margin-top:10px; line-height:1.6;}
+  .toast{position:fixed; bottom:24px; left:50%; transform:translateX(-50%); background:var(--text); color:var(--bg); padding:9px 18px; border-radius:10px; font-size:13px; box-shadow:var(--shadow); opacity:0; transition:.25s; pointer-events:none; z-index:80;}
+  .toast.show{opacity:1;}
+  @media (max-width:720px){
+    main{flex-direction:column;}
+    .splitter{display:none;}
+    .pane{flex:1 1 auto;}
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand"><span class="logo">易</span><span>易文本编辑器</span></div>
+  <div class="toolbar">
+    <button class="tb" id="btnImport">📂 导入 .ywb</button>
+    <button class="tb" id="btnExport">💾 导出 .ywb</button>
+    <button class="tb" id="btnExportHtml">🌐 导出 HTML</button>
+    <button class="tb" id="btnCopy">📋 复制 HTML</button>
+    <button class="tb" id="btnSample">✨ 载入示例</button>
+    <button class="tb" id="btnVoice">🎤 语音输入</button>
+    <button class="tb" id="btnClear">🗑 清空</button>
+    <button class="tb" id="btnCheat">📖 语法速查</button>
+    <button class="tb" id="btnTheme">🌓 主题</button>
+    <input type="file" id="fileInput" accept=".ywb,.txt" style="display:none">
+  </div>
+</header>
+<main>
+  <section class="pane" id="editorPane">
+    <div class="pane-head"><span>易文本源码（左侧输入语法）</span><span id="stat">0 字</span></div>
+    <textarea id="src" spellcheck="false" placeholder="在此输入易文本语法，例如：&#10;yi 一级标题&#10;jc 加粗的内容&#10;yy 引用的内容&#10;wxlb 无序列表项"></textarea>
+  </section>
+  <div class="splitter" id="splitter"></div>
+  <section class="pane">
+    <div class="pane-head"><span>实时预览（右侧渲染）</span><span>易文本 · .ywb</span></div>
+    <div id="preview"></div>
+  </section>
+</main>
+
+<div class="overlay" id="cheatOverlay">
+  <div class="modal">
+    <div class="modal-head"><h3>易文本语法速查表</h3><button class="close-x" id="cheatClose">×</button></div>
+    <div class="modal-body">
+      <table class="cheat">
+        <thead><tr><th>功能</th><th>语法</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td>一级~六级标题</td><td><code>yi / er / san / si / wu / liu …</code> + 空格 + 内容</td><td>数字为中文数字，超出 6 级按 h6 处理</td></tr>
+          <tr><td>加粗</td><td><code>jc</code> + 空格 + 内容</td><td>整行加粗</td></tr>
+          <tr><td>斜体</td><td><code>xt</code> + 空格 + 内容</td><td>整行斜体</td></tr>
+          <tr><td>下划线</td><td><code>xhx</code> + 空格 + 内容</td><td></td></tr>
+          <tr><td>高亮</td><td><code>gl</code> + 空格 + 内容</td><td>荧光笔效果</td></tr>
+          <tr><td>删除线</td><td><code>scx</code> + 空格 + 内容</td><td></td></tr>
+          <tr><td>引用</td><td><code>yy</code> + 空格 + 内容</td><td></td></tr>
+          <tr><td>无序列表</td><td><code>wxlb</code> + 空格 + 内容</td><td>连续多行自动合并为一个列表</td></tr>
+          <tr><td>有序列表</td><td><code>yxlb</code> + 空格 + 内容</td><td>连续多行自动合并</td></tr>
+          <tr><td>代码块</td><td><code>dmk</code> 开 / <code>dmk</code> 闭</td><td>单独一行 <code>dmk</code> 开始，再单独一行 <code>dmk</code> 结束；可写 <code>dmk js</code> 标注语言</td></tr>
+          <tr><td>行内代码</td><td><code>hndm</code> + 空格 + 内容</td><td></td></tr>
+          <tr><td>上标</td><td><code>sb</code> + 空格 + 内容</td><td></td></tr>
+          <tr><td>下标</td><td><code>xb</code> + 空格 + 内容</td><td></td></tr>
+          <tr><td>提示框</td><td><code>tsk</code> + 空格 + 内容</td><td>可选类型：<code>tsk info|success|warn|danger 内容</code></td></tr>
+          <tr><td>折叠内容</td><td><code>zdnr 标题</code> 开 / <code>zdnr</code> 闭</td><td>中间多行为折叠正文</td></tr>
+          <tr><td>分割线</td><td><code>fgx</code></td><td>单独一行</td></tr>
+          <tr><td>换行</td><td><code>hh</code></td><td>单独一行，插入空行间距</td></tr>
+          <tr><td>分页</td><td><code>fy</code></td><td>单独一行，虚线分页标记</td></tr>
+          <tr><td>目录</td><td><code>ml</code></td><td>自动收集此前所有标题</td></tr>
+          <tr><td>时间戳</td><td><code>sj</code></td><td>插入当前时间（随编辑更新）</td></tr>
+          <tr><td>居左</td><td><code>jzuo</code> + 空格 + 内容</td><td></td></tr>
+          <tr><td>居中</td><td><code>jzong</code> + 空格 + 内容</td><td></td></tr>
+          <tr><td>居右</td><td><code>jyou</code> + 空格 + 内容</td><td></td></tr>
+          <tr><td>普通链接</td><td><code>lj 显示文字|网址</code></td><td>无 <code>|</code> 时整段作为网址</td></tr>
+          <tr><td>图片链接</td><td><code>tplj 替代文字|图片地址</code></td><td></td></tr>
+          <tr><td>视频链接</td><td><code>splj 说明|视频地址</code></td><td>自带播放器</td></tr>
+          <tr><td>音频链接</td><td><code>yplj 说明|音频地址</code></td><td>自带播放器</td></tr>
+          <tr><td>附件链接</td><td><code>fjlj 文件名|文件地址</code></td><td></td></tr>
+          <tr><td>脚注</td><td><code>jz 脚注内容</code></td><td>自动编号，文末汇总</td></tr>
+        </tbody>
+      </table>
+      <p class="hint">注意：标题类语法（如 <code>yi</code>）必须位于行首并以空格分隔内容；普通段落中若行首恰好是某个语法词加空格，也会被解析为该语法。建议用 <code>dmk</code> 包裹纯文本代码以避免误解析。</p>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* ===================== 易文本解析引擎 ===================== */
+(function (global) {
+  'use strict';
+  const NUM = { yi:1, er:2, san:3, si:4, wu:5, liu:6, qi:7, ba:8, jiu:9, shi:10 };
+  const TOKENS = {
+    jc:'strong', yy:'blockquote', xt:'em', xhx:'u', gl:'mark', scx:'s',
+    tsk:'tip', hndm:'code', sb:'sup', xb:'sub',
+    jzong:'center', jzuo:'left', jyou:'right',
+    lj:'link', tplj:'image', splj:'video', yplj:'audio', fjlj:'file', jz:'footnote',
+    wxlb:'ul', yxlb:'ol',
+    fgx:'hr', hh:'br', fy:'page', ml:'toc', sj:'time',
+    zdnr:'details', dmk:'codeblock'
+  };
+  const TIP_TYPES = ['info','success','warn','danger'];
+  const TIP_LABEL = { info:'提示', success:'成功', warn:'注意', danger:'警告' };
+  function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+  function safeUrl(u){u=String(u).trim(); if(/^\s*javascript:/i.test(u)) return '#'; return esc(u);}
+  function splitPair(s){s=String(s); const i=s.indexOf('|'); if(i<0) return [s.trim(),s.trim()]; return [s.slice(0,i).trim(), s.slice(i+1).trim()];}
+  function renderToc(h){
+    if(!h.length) return '<div class="toc toc-empty">（暂无标题）</div>';
+    let s='<nav class="toc"><div class="toc-title">目录</div><ul class="toc-list">';
+    for(const it of h){ s+='<li class="toc-lvl-'+it.level+'"><a href="#'+it.id+'">'+esc(it.text)+'</a></li>'; }
+    s+='</ul></nav>'; return s;
+  }
+  function parseYi(src){
+    src=String(src==null?'':src);
+    const lines=src.replace(/\r\n/g,'\n').split('\n');
+    let out='';
+    let inCode=false,codeLang='',codeBuf=[];
+    let inDetails=false,detSummary='',detBuf=[];
+    let listType=null,listBuf=[];
+    let headings=[];
+    let footnotes=[],fnCount=0;
+    let paraBuf=[];
+    function flushPara(){ if(paraBuf.length){ out+='<p>'+paraBuf.map(esc).join('<br>')+'</p>'; paraBuf=[]; } }
+    function flushList(){ if(listType){ out+='<'+listType+' class="yi-list">'+listBuf.map(li=>'<li>'+esc(li)+'</li>').join('')+'</'+listType+'>'; listType=null; listBuf=[]; } }
+    function flushDetails(){ if(inDetails){ out+='<details class="yi-details"><summary>'+esc(detSummary)+'</summary><div class="details-body">'+detBuf.map(esc).join('<br>')+'</div></details>'; inDetails=false; detBuf=[]; } }
+    function flushCode(){ if(inCode){ out+='<pre class="yi-codeblock'+(codeLang?' lang-'+esc(codeLang):'')+'"><code>'+esc(codeBuf.join('\n'))+'</code></pre>'; inCode=false; codeBuf=[]; codeLang=''; } }
+    function flushAll(){ flushPara(); flushList(); flushDetails(); flushCode(); }
+    for(let idx=0; idx<lines.length; idx++){
+      const raw=lines[idx];
+      const line=raw.replace(/\s+$/,'');
+      if(inCode){ if(line.trim()==='dmk'){ flushCode(); continue; } codeBuf.push(raw); continue; }
+      if(inDetails){ if(line.trim()==='zdnr'){ flushDetails(); continue; } detBuf.push(raw); continue; }
+      if(line.trim()===''){ flushPara(); flushList(); continue; }
+      const m=line.match(/^(\S+)\s+([\s\S]*)$/);
+      let token=null,rest='';
+      if(m){ token=m[1]; rest=m[2]; } else { token=line.trim(); rest=''; }
+      if(NUM[token]!==undefined){
+        flushPara(); flushList();
+        const n=NUM[token], lvl=Math.min(n,6), hid='yi-h-'+headings.length;
+        headings.push({level:lvl,id:hid,text:rest});
+        out+='<h'+lvl+' id="'+hid+'" class="yi-h yi-h'+lvl+'">'+esc(rest)+'</h'+lvl+'>';
+        continue;
+      }
+      const type=TOKENS[token];
+      if(type){
+        flushPara();
+        if(type!=='ul'&&type!=='ol') flushList();
+        switch(type){
+          case 'strong': out+='<p class="yi-strong"><strong>'+esc(rest)+'</strong></p>'; break;
+          case 'blockquote': out+='<blockquote class="yi-quote">'+esc(rest)+'</blockquote>'; break;
+          case 'em': out+='<p class="yi-em"><em>'+esc(rest)+'</em></p>'; break;
+          case 'u': out+='<p class="yi-u"><u>'+esc(rest)+'</u></p>'; break;
+          case 'mark': out+='<p class="yi-mark"><mark>'+esc(rest)+'</mark></p>'; break;
+          case 's': out+='<p class="yi-s"><s>'+esc(rest)+'</s></p>'; break;
+          case 'tip': { let r=rest,cls='info'; const tw=r.split(/\s+/)[0]; if(TIP_TYPES.includes(tw)){cls=tw; r=r.slice(tw.length).trim();} out+='<div class="yi-tip yi-tip-'+cls+'"><span class="tip-label">'+TIP_LABEL[cls]+'</span>'+esc(r)+'</div>'; break; }
+          case 'code': out+='<p class="yi-code"><code class="yi-inline-code">'+esc(rest)+'</code></p>'; break;
+          case 'sup': out+='<p class="yi-sup"><sup>'+esc(rest)+'</sup></p>'; break;
+          case 'sub': out+='<p class="yi-sub"><sub>'+esc(rest)+'</sub></p>'; break;
+          case 'center': out+='<div class="yi-align yi-center">'+esc(rest)+'</div>'; break;
+          case 'left': out+='<div class="yi-align yi-left">'+esc(rest)+'</div>'; break;
+          case 'right': out+='<div class="yi-align yi-right">'+esc(rest)+'</div>'; break;
+          case 'link': { const p=splitPair(rest); out+='<a class="yi-link" href="'+safeUrl(p[1])+'" target="_blank" rel="noopener">'+esc(p[0])+'</a>'; break; }
+          case 'image': { const p=splitPair(rest); out+='<figure class="yi-figure"><img src="'+safeUrl(p[1])+'" alt="'+esc(p[0])+'"><figcaption>'+esc(p[0])+'</figcaption></figure>'; break; }
+          case 'video': { const p=splitPair(rest); out+='<div class="yi-media"><video src="'+safeUrl(p[1])+'" controls preload="metadata"></video></div>'; break; }
+          case 'audio': { const p=splitPair(rest); out+='<div class="yi-media"><audio src="'+safeUrl(p[1])+'" controls preload="metadata"></audio></div>'; break; }
+          case 'file': { const p=splitPair(rest); out+='<a class="yi-file" href="'+safeUrl(p[1])+'" target="_blank" rel="noopener">📎 '+esc(p[0])+'</a>'; break; }
+          case 'footnote': { fnCount++; footnotes.push({n:fnCount,text:rest}); out+='<sup class="yi-fn"><a id="fnref'+fnCount+'" href="#fn'+fnCount+'">['+fnCount+']</a></sup>'; break; }
+          case 'ul': if(listType&&listType!=='ul') flushList(); listType='ul'; listBuf.push(rest); break;
+          case 'ol': if(listType&&listType!=='ol') flushList(); listType='ol'; listBuf.push(rest); break;
+          case 'hr': out+='<hr class="yi-hr">'; break;
+          case 'br': out+='<div class="yi-br"></div>'; break;
+          case 'page': out+='<div class="yi-page-break"><span>分页</span></div>'; break;
+          case 'toc': out+=renderToc(headings); break;
+          case 'time': out+='<span class="yi-time">'+esc(new Date().toLocaleString('zh-CN'))+'</span>'; break;
+          case 'details': inDetails=true; detSummary=rest; break;
+          case 'codeblock': inCode=true; codeLang=rest.trim(); break;
+        }
+        continue;
+      }
+      if(listType) flushList();
+      paraBuf.push(line);
+    }
+    flushAll();
+    if(footnotes.length){
+      out+='<section class="yi-footnotes"><hr><div class="fn-title">脚注</div><ol>';
+      for(const f of footnotes){ out+='<li id="fn'+f.n+'">'+esc(f.text)+' <a href="#fnref'+f.n+'" class="fn-back">↩</a></li>'; }
+      out+='</ol></section>';
+    }
+    return out;
+  }
+  global.parseYi = parseYi;
+})(window);
+
+/* ===================== 编辑器交互 ===================== */
+(function(){
+  const src = document.getElementById('src');
+  const preview = document.getElementById('preview');
+  const stat = document.getElementById('stat');
+  const STORE_KEY = 'yiwen-doc';
+  const THEME_KEY = 'yiwen-theme';
+
+  function render(){
+    preview.innerHTML = parseYi(src.value);
+    stat.textContent = src.value.length + ' 字';
+    try { localStorage.setItem(STORE_KEY, src.value); } catch(e){}
+  }
+  let timer=null;
+  src.addEventListener('input', function(){
+    clearTimeout(timer);
+    timer = setTimeout(render, 120);
+  });
+
+  function toast(msg){
+    const t=document.getElementById('toast');
+    t.textContent=msg; t.classList.add('show');
+    clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'),1600);
+  }
+
+  // 导入
+  const fileInput=document.getElementById('fileInput');
+  document.getElementById('btnImport').addEventListener('click',()=>fileInput.click());
+  fileInput.addEventListener('change',function(e){
+    const f=e.target.files[0]; if(!f) return;
+    const r=new FileReader();
+    r.onload=()=>{ src.value=r.result; render(); toast('已导入：'+f.name); };
+    r.readAsText(f,'utf-8');
+    fileInput.value='';
+  });
+
+  function download(name, content, type){
+    const blob=new Blob([content],{type:type});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob); a.download=name;
+    document.body.appendChild(a); a.click();
+    setTimeout(()=>{URL.revokeObjectURL(a.href); a.remove();},0);
+  }
+
+  // 导出 .ywb
+  document.getElementById('btnExport').addEventListener('click',()=>{
+    download('易文本文档.ywb', src.value, 'text/plain;charset=utf-8');
+    toast('已导出 .ywb 文件');
+  });
+
+  // 导出 HTML
+  document.getElementById('btnExportHtml').addEventListener('click',()=>{
+    const body=parseYi(src.value);
+    const doc='<!DOCTYPE html>\n<html lang="zh-CN">\n<head>\n<meta charset="UTF-8">\n'
+      +'<meta name="viewport" content="width=device-width,initial-scale=1">\n'
+      +'<title>易文本文档</title>\n<style>\n'
+      +'body{font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;max-width:820px;margin:40px auto;padding:0 20px;line-height:1.8;color:#1f2430;}\n'
+      +'h1{border-bottom:2px solid #e3e8ef;padding-bottom:.25em;} h2{border-bottom:1px solid #e3e8ef;}\n'
+      +'.yi-quote{border-left:4px solid #3b6cf6;background:#eaf0ff;padding:.6em 1em;border-radius:0 8px 8px 0;}\n'
+      +'.yi-list li{margin:.2em 0;} mark{background:#fff3a3;padding:.05em .2em;}\n'
+      +'.yi-codeblock{background:#f3f5f9;border:1px solid #e3e8ef;border-radius:10px;padding:14px 16px;overflow:auto;}\n'
+      +'.yi-codeblock code{font-family:Consolas,Menlo,monospace;white-space:pre;}\n'
+      +'.yi-inline-code{background:#f3f5f9;border:1px solid #e3e8ef;border-radius:5px;padding:.1em .4em;font-family:Consolas,Menlo,monospace;}\n'
+      +'.yi-tip{border-radius:10px;padding:.7em 1em;border:1px solid #2b6cb0;background:rgba(43,108,176,.08);}\n'
+      +'.yi-tip .tip-label{font-weight:700;margin-right:.5em;padding:.05em .5em;border-radius:5px;color:#fff;background:#2b6cb0;}\n'
+      +'.yi-hr{border:0;border-top:1px solid #cfd6e0;margin:1.4em 0;}\n'
+      +'.yi-page-break{border-top:2px dashed #cfd6e0;text-align:center;margin:1.6em 0;}\n'
+      +'.yi-page-break span{position:relative;top:-.7em;background:#fff;padding:0 10px;color:#5b6472;}\n'
+      +'.yi-align.yi-center{text-align:center;} .yi-align.yi-left{text-align:left;} .yi-align.yi-right{text-align:right;}\n'
+      +'.yi-figure img{max-width:100%;border-radius:10px;border:1px solid #e3e8ef;}\n'
+      +'.yi-media video,.yi-media audio{width:100%;}\n'
+      +'.yi-link{color:#3b6cf6;text-decoration:none;}\n'
+      +'.yi-file{display:inline-block;background:#eaf0ff;color:#3b6cf6;border:1px solid #3b6cf6;border-radius:8px;padding:.4em .8em;text-decoration:none;}\n'
+      +'.toc{border:1px solid #e3e8ef;border-radius:10px;padding:.8em 1.2em;display:inline-block;min-width:200px;}\n'
+      +'.toc-list{list-style:none;padding:0;} .toc-list a{color:#3b6cf6;text-decoration:none;}\n'
+      +'.toc-lvl-1{padding-left:0;} .toc-lvl-2{padding-left:1em;} .toc-lvl-3{padding-left:2em;} .toc-lvl-4{padding-left:3em;} .toc-lvl-5{padding-left:4em;} .toc-lvl-6{padding-left:5em;}\n'
+      +'.yi-details{border:1px solid #e3e8ef;border-radius:10px;padding:.5em .9em;} .yi-details summary{cursor:pointer;font-weight:600;}\n'
+      +'.yi-time{background:#f3f5f9;border:1px solid #e3e8ef;border-radius:6px;padding:.1em .5em;font-size:.85em;}\n'
+      +'.yi-footnotes{margin-top:2em;font-size:.9em;color:#5b6472;}\n'
+      +'</style>\n</head>\n<body>\n'+body+'\n</body>\n</html>';
+    download('易文本文档.html', doc, 'text/html;charset=utf-8');
+    toast('已导出 HTML 文件');
+  });
+
+  // 复制 HTML
+  document.getElementById('btnCopy').addEventListener('click',()=>{
+    const html=parseYi(src.value);
+    if(navigator.clipboard&&navigator.clipboard.writeText){
+      navigator.clipboard.writeText(html).then(()=>toast('已复制 HTML 源码')).catch(()=>toast('复制失败'));
+    } else { toast('当前环境不支持复制'); }
+  });
+
+  // 清空
+  document.getElementById('btnClear').addEventListener('click',()=>{
+    if(src.value && !confirm('确定清空当前内容？')) return;
+    src.value=''; render(); toast('已清空');
+  });
+
+  // 载入示例
+  const SAMPLE = [
+    'yi 易文本 · 中文标记语言',
+    'er 这是什么',
+    'jc 易文本是一种以中文为基础、类似 Markdown 的轻量文本格式。',
+    'xt 输入中文语法词加空格，就能生成对应排版。',
+    'gl 全部语法都是中文拼音首字母，好记又好打。',
+    'scx 这一行会被划掉。',
+    'yy 引用：易文本，让中文写作更自然。',
+    'san 列表与代码',
+    'wxlb 无序列表第一项',
+    'wxlb 无序列表第二项',
+    'yxlb 有序第一步',
+    'yxlb 有序第二步',
+    'tsk 这是一条普通提示框',
+    'tsk warn 这是一条需要注意的警告提示',
+    'dmk',
+    'function hello(name) {',
+    '  console.log("你好，" + name);',
+    '}',
+    'dmk',
+    'hndm const x = 42;',
+    'sb 上标示例：E = mc²',
+    'xb 下标示例：H₂O',
+    'jzong 这一行居中显示',
+    'jzuo 这一行居左显示',
+    'jyou 这一行居右显示',
+    'lj 访问 WorkBuddy|https://www.workbuddy.cn',
+    'tplj 示例图片|https://picsum.photos/480/240',
+    'fjlj 下载示例文档|https://example.com/demo.pdf',
+    'jz 这是一个脚注，点击上标可跳转。',
+    'zdnr 点击展开：更多说明',
+    '折叠区域里可以放补充说明、长段落或注意事项。',
+    '支持多行内容，全部显示在折叠框内。',
+    'zdnr',
+    'fgx',
+    'er 目录与时间戳',
+    'ml',
+    'sj'
+  ].join('\n');
+  document.getElementById('btnSample').addEventListener('click',()=>{
+    src.value=SAMPLE; render(); toast('已载入示例');
+  });
+
+  // 语法速查
+  const overlay=document.getElementById('cheatOverlay');
+  document.getElementById('btnCheat').addEventListener('click',()=>overlay.classList.add('show'));
+  document.getElementById('cheatClose').addEventListener('click',()=>overlay.classList.remove('show'));
+  overlay.addEventListener('click',e=>{ if(e.target===overlay) overlay.classList.remove('show'); });
+
+  // 主题
+  function applyTheme(t){ document.body.classList.toggle('dark', t==='dark'); }
+  let theme=localStorage.getItem(THEME_KEY)||'light';
+  applyTheme(theme);
+  document.getElementById('btnTheme').addEventListener('click',()=>{
+    theme = theme==='dark'?'light':'dark';
+    localStorage.setItem(THEME_KEY, theme); applyTheme(theme);
+  });
+
+  // 语音输入（Web Speech API，Chrome/Edge 支持）
+  const btnVoice=document.getElementById('btnVoice');
+  let recog=null, recognizing=false;
+  if('webkitSpeechRecognition' in window || 'SpeechRecognition' in window){
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    recog=new SR();
+    recog.lang='zh-CN';
+    recog.continuous=true;
+    recog.interimResults=true;
+    recog.onresult=function(e){
+      let txt='';
+      for(let i=e.resultIndex;i<e.results.length;i++){ txt+=e.results[i][0].transcript; }
+      if(txt){
+        const sep = src.value && !src.value.endsWith('\n') ? '\n' : '';
+        src.value = src.value + sep + txt;
+        render();
+      }
+    };
+    recog.onend=function(){ recognizing=false; btnVoice.innerHTML='🎤 语音输入'; };
+    recog.onerror=function(){ recognizing=false; btnVoice.innerHTML='🎤 语音输入'; };
+    btnVoice.addEventListener('click',()=>{
+      if(recognizing){ recog.stop(); return; }
+      try{ recog.start(); recognizing=true; btnVoice.innerHTML='<span class="rec-dot"></span> 停止'; }
+      catch(err){ toast('无法启动语音识别'); }
+    });
+  } else {
+    btnVoice.addEventListener('click',()=>toast('当前浏览器不支持语音输入（建议用 Chrome/Edge）'));
+  }
+
+  // 可拖动分隔条
+  const splitter=document.getElementById('splitter');
+  const editorPane=document.getElementById('editorPane');
+  let dragging=false;
+  splitter.addEventListener('mousedown',()=>{ dragging=true; document.body.style.cursor='col-resize'; });
+  window.addEventListener('mousemove',e=>{
+    if(!dragging) return;
+    const rect=document.body.getBoundingClientRect();
+    let w=(e.clientX-rect.left)/rect.width*100;
+    w=Math.max(20,Math.min(80,w));
+    editorPane.style.flex = '0 0 '+w+'%';
+  });
+  window.addEventListener('mouseup',()=>{ if(dragging){ dragging=false; document.body.style.cursor=''; } });
+
+  // 初始化
+  const saved=localStorage.getItem(STORE_KEY);
+  if(saved!==null && saved!==''){ src.value=saved; }
+  else { src.value=SAMPLE; }
+  render();
+})();
+</script>
+</body>
+</html>
