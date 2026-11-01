@@ -39,6 +39,22 @@
   button.tb.primary{background:var(--accent); color:#fff; border-color:var(--accent);}
   button.tb.primary:hover{filter:brightness(1.05); color:#fff;}
   button.tb.danger:hover{border-color:var(--tip-danger); color:var(--tip-danger);}
+  /* 工具栏简约线性图标：::before + SVG mask，颜色跟随文字/主题（currentColor） */
+  button.tb::before{
+    content:''; width:1.05em; height:1.05em; flex:0 0 auto;
+    background-color:currentColor;
+    -webkit-mask:var(--ic) center/contain no-repeat;
+            mask:var(--ic) center/contain no-repeat;
+  }
+  #btnImport{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3'/%3E%3C/svg%3E");}
+  #btnExport{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14L21 3'/%3E%3C/svg%3E");}
+  #btnExportHtml{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M16 18l6-6-6-6M8 6l-6 6 6 6'/%3E%3C/svg%3E");}
+  #btnCopy{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='9' y='9' width='10' height='10' rx='2'/%3E%3Cpath d='M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1'/%3E%3C/svg%3E");}
+  #btnSample{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z'/%3E%3Cpath d='M14 2v6h6M16 13H8M16 17H8M10 9H8'/%3E%3C/svg%3E");}
+  #btnVoice{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='9' y='2' width='6' height='12' rx='3'/%3E%3Cpath d='M5 10a7 7 0 0 0 14 0M12 19v3M8 22h8'/%3E%3C/svg%3E");}
+  #btnClear{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6'/%3E%3C/svg%3E");}
+  #btnCheat{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M2 3h6a2 2 0 0 1 2 2v14a2 2 0 0 0 2-2H2zM22 3h-6a2 2 0 0 0-2 2v14a2 2 0 0 1 2-2h6z'/%3E%3C/svg%3E");}
+  #btnTheme{--ic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z'/%3E%3C/svg%3E");}
   .rec-dot{width:8px;height:8px;border-radius:50%;background:#e53e3e;display:inline-block;animation:pulse 1s infinite;}
   @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
   main{flex:1 1 auto; display:flex; min-height:0;}
@@ -132,15 +148,15 @@
 <header>
   <div class="brand"><span class="logo">易</span><span>易文本编辑器</span></div>
   <div class="toolbar">
-    <button class="tb" id="btnImport">📂 导入 .ywb</button>
-    <button class="tb" id="btnExport">💾 导出 .ywb</button>
-    <button class="tb" id="btnExportHtml">🌐 导出 HTML</button>
-    <button class="tb" id="btnCopy">📋 复制 HTML</button>
-    <button class="tb" id="btnSample">✨ 载入示例</button>
-    <button class="tb" id="btnVoice">🎤 语音输入</button>
-    <button class="tb" id="btnClear">🗑 清空</button>
-    <button class="tb" id="btnCheat">📖 语法速查</button>
-    <button class="tb" id="btnTheme">🌓 主题</button>
+    <button class="tb" id="btnImport">导入 .ywb</button>
+    <button class="tb" id="btnExport">导出 .ywb</button>
+    <button class="tb" id="btnExportHtml">导出 HTML</button>
+    <button class="tb" id="btnCopy">复制</button>
+    <button class="tb" id="btnSample">示例</button>
+    <button class="tb" id="btnVoice">语音</button>
+    <button class="tb" id="btnClear">清空</button>
+    <button class="tb" id="btnCheat">速查</button>
+    <button class="tb" id="btnTheme">主题</button>
     <input type="file" id="fileInput" accept=".ywb,.txt" style="display:none">
   </div>
 </header>
@@ -551,8 +567,8 @@
         render();
       }
     };
-    recog.onend=function(){ recognizing=false; btnVoice.innerHTML='🎤 语音输入'; };
-    recog.onerror=function(){ recognizing=false; btnVoice.innerHTML='🎤 语音输入'; };
+    recog.onend=function(){ recognizing=false; btnVoice.innerHTML='语音'; };
+    recog.onerror=function(){ recognizing=false; btnVoice.innerHTML='语音'; };
     btnVoice.addEventListener('click',()=>{
       if(recognizing){ recog.stop(); return; }
       try{ recog.start(); recognizing=true; btnVoice.innerHTML='<span class="rec-dot"></span> 停止'; }
