@@ -201,7 +201,7 @@
           <tr><td>分页</td><td><code>fy</code></td><td>单独一行，虚线分页标记</td></tr>
           <tr><td>目录</td><td><code>ml</code></td><td>自动收集此前所有标题</td></tr>
           <tr><td>时间戳</td><td><code>sj</code></td><td>插入当前时间（随编辑更新）</td></tr>
-          <tr><td>表格</td><td><code>bg 单元格1bg 单元格2bg 单元格3</code><br>下一行继续写 <code>bg …</code> 即同一表格的下一行</td><td><code>bg</code> 代表「竖」（单元格分隔），<b>每行 = 表格的一行</b>；连续多行 <code>bg</code> 自动合并成一个表格；空一行再写可另起一个表格；首行自动作为表头</td></tr>
+          <tr><td>表格</td><td><code>&lt;bgh&gt;表头1|表头2|表头3</code><br><code>&lt;bgh&gt;数据1|数据2|数据3</code><br><code>&lt;bgl2&gt;仅第2列有数据</code></td><td>以 <code>&lt;bgh&gt;</code> 起始一行，<code>|</code> 分隔列；首行是表头；<b>空列名用 <code>||</code> 表示</b>；某行只有单列数据时用 <code>&lt;bglN&gt;</code>（N 为列号）；连续行自动合并成一张表，空一行另起一张表</td></tr>
           <tr><td>居左</td><td><code>jzuo</code> / <code>kz</code> + 空格 + 内容</td><td></td></tr>
           <tr><td>居中</td><td><code>jzong</code> / <code>zj</code> + 空格 + 内容</td><td></td></tr>
           <tr><td>居右</td><td><code>jyou</code> / <code>ky</code> + 空格 + 内容</td><td></td></tr>
@@ -261,16 +261,24 @@
     function flushDetails(){ if(inDetails){ out+='<details class="yi-details"><summary>'+esc(detSummary)+'</summary><div class="details-body">'+detBuf.map(esc).join('<br>')+'</div></details>'; inDetails=false; detBuf=[]; } }
     function flushCode(){ if(inCode){ out+='<pre class="yi-codeblock'+(codeLang?' lang-'+esc(codeLang):'')+'"><code>'+esc(codeBuf.join('\n'))+'</code></pre>'; inCode=false; codeBuf=[]; codeLang=''; } }
     function flushTable(){ if(tableBuf.length){
-      const maxCols=Math.max.apply(null,tableBuf.map(r=>r.length));
+      const rows=tableBuf; tableBuf=[];
+      const header=(rows[0]&&rows[0].cells)||[];
+      const cols=header.length;
       let t='<table class="yi-table"><thead><tr>';
-      tableBuf[0].forEach(c=>{ t+='<th>'+esc(c)+'</th>'; });
+      header.forEach(c=>{ t+='<th>'+esc(c)+'</th>'; });
       t+='</tr></thead><tbody>';
-      for(let ri=1; ri<tableBuf.length; ri++){
-        const row=tableBuf[ri].slice();
-        while(row.length<maxCols) row.push('');
-        t+='<tr>'+row.map(c=>'<td>'+esc(c)+'</td>').join('')+'</tr>';
+      for(let ri=1; ri<rows.length; ri++){
+        const r=rows[ri];
+        const cells=new Array(cols).fill('');
+        if(r.single!==undefined){
+          const idx=r.single-1;
+          if(idx>=0&&idx<cols) cells[idx]=r.val;
+        } else {
+          for(let c=0;c<cols;c++){ if(r.cells[c]!==undefined) cells[c]=r.cells[c]; }
+        }
+        t+='<tr>'+cells.map(c=>'<td>'+esc(c)+'</td>').join('')+'</tr>';
       }
-      t+='</tbody></table>'; out+=t; tableBuf=[];
+      t+='</tbody></table>'; out+=t;
     } }
     function flushAll(){ flushPara(); flushList(); flushDetails(); flushCode(); flushTable(); }
     for(let idx=0; idx<lines.length; idx++){
@@ -280,11 +288,17 @@
       if(inDetails){ if(line.trim()==='zdnr'||line.trim()==='zd'){ flushDetails(); continue; } detBuf.push(raw); continue; }
       if(line.trim()===''){ flushPara(); flushList(); flushTable(); continue; }
       const trimmed=line.trim();
-      if(trimmed==='bg'||trimmed.startsWith('bg ')){
+      // 表格（invitespt 提议语法）：<bgh> 起始一行（首行为表头），<bglN> 单列数据行
+      if(trimmed.startsWith('<bgh>')){
         flushPara(); flushList();
-        const body=trimmed==='bg'?'':trimmed.slice(3).trim();
-        const cells=body.split(/\s*bg\s*|\|/).map(c=>c.trim()).filter(c=>c!=='');
-        if(cells.length) tableBuf.push(cells);
+        const cells=trimmed.slice(5).split('|').map(c=>c.trim());
+        tableBuf.push({cells:cells});
+        continue;
+      }
+      const bglM=trimmed.match(/^<bgl(\d+)>([\s\S]*)$/);
+      if(bglM){
+        flushPara(); flushList();
+        tableBuf.push({single:parseInt(bglM[1],10), val:bglM[2].trim()});
         continue;
       }
       const m=line.match(/^(\S+)\s+([\s\S]*)$/);
@@ -506,14 +520,18 @@
     '折叠区域里可以放补充说明、长段落或注意事项。',
     '支持多行内容，全部显示在折叠框内。',
     'zdnr',
-    'er 表格',
-    'bg 姓名bg 年龄bg 城市',
-    'bg 张三bg 18bg 北京',
-    'bg 李四bg 22bg 上海',
-    'bg 水果bg 单价',
-    'bg 苹果bg 5元',
-    'bg 蔬菜bg 单价',
-    'bg 白菜bg 2元',
+    'er 表格（<bgh> / <bglN> 语法）',
+    '<bgh>姓名|年龄|城市',
+    '<bgh>张三|18|北京',
+    '<bgh>李四|22|上海',
+    '',
+    '<bgh>商品||价格',
+    '<bgh>苹果||5元',
+    '<bgh>香蕉||3元',
+    '',
+    '<bgh>序号|姓名|备注',
+    '<bgh>1|张三|无',
+    '<bgl2>李四',
     'er 颜色、字号与更多语法',
     'ys#e53935 这一行是红色',
     'ys30,136,229 这一行是蓝色（r,g,b 写法）',

@@ -1,6 +1,6 @@
 /*!
  * 易文本 YiText —— 轻量中文标记语言解析库
- * 版本：0.2.0
+ * 版本：0.3.0
  *
  * 用法：
  *   浏览器：<script src="yitext.js"></script>
@@ -63,16 +63,24 @@
     function flushDetails(){ if(inDetails){ out+='<details class="yi-details"><summary>'+esc(detSummary)+'</summary><div class="details-body">'+detBuf.map(esc).join('<br>')+'</div></details>'; inDetails=false; detBuf=[]; } }
     function flushCode(){ if(inCode){ out+='<pre class="yi-codeblock'+(codeLang?' lang-'+esc(codeLang):'')+'"><code>'+esc(codeBuf.join('\n'))+'</code></pre>'; inCode=false; codeBuf=[]; codeLang=''; } }
     function flushTable(){ if(tableBuf.length){
-      const maxCols=Math.max.apply(null,tableBuf.map(r=>r.length));
+      const rows=tableBuf; tableBuf=[];
+      const header=(rows[0]&&rows[0].cells)||[];
+      const cols=header.length;
       let t='<table class="yi-table"><thead><tr>';
-      tableBuf[0].forEach(c=>{ t+='<th>'+esc(c)+'</th>'; });
+      header.forEach(c=>{ t+='<th>'+esc(c)+'</th>'; });
       t+='</tr></thead><tbody>';
-      for(let ri=1; ri<tableBuf.length; ri++){
-        const row=tableBuf[ri].slice();
-        while(row.length<maxCols) row.push('');
-        t+='<tr>'+row.map(c=>'<td>'+esc(c)+'</td>').join('')+'</tr>';
+      for(let ri=1; ri<rows.length; ri++){
+        const r=rows[ri];
+        const cells=new Array(cols).fill('');
+        if(r.single!==undefined){
+          const idx=r.single-1;
+          if(idx>=0&&idx<cols) cells[idx]=r.val;
+        } else {
+          for(let c=0;c<cols;c++){ if(r.cells[c]!==undefined) cells[c]=r.cells[c]; }
+        }
+        t+='<tr>'+cells.map(c=>'<td>'+esc(c)+'</td>').join('')+'</tr>';
       }
-      t+='</tbody></table>'; out+=t; tableBuf=[];
+      t+='</tbody></table>'; out+=t;
     } }
     function flushAll(){ flushPara(); flushList(); flushDetails(); flushCode(); flushTable(); }
     for(let idx=0; idx<lines.length; idx++){
@@ -82,11 +90,17 @@
       if(inDetails){ if(line.trim()==='zdnr'||line.trim()==='zd'){ flushDetails(); continue; } detBuf.push(raw); continue; }
       if(line.trim()===''){ flushPara(); flushList(); flushTable(); continue; }
       const trimmed=line.trim();
-      if(trimmed==='bg'||trimmed.startsWith('bg ')){
+      // 表格（invitespt 提议语法）：<bgh> 起始一行（首行为表头），<bglN> 单列数据行
+      if(trimmed.startsWith('<bgh>')){
         flushPara(); flushList();
-        const body=trimmed==='bg'?'':trimmed.slice(3).trim();
-        const cells=body.split(/\s*bg\s*|\|/).map(c=>c.trim()).filter(c=>c!=='');
-        if(cells.length) tableBuf.push(cells);
+        const cells=trimmed.slice(5).split('|').map(c=>c.trim());
+        tableBuf.push({cells:cells});
+        continue;
+      }
+      const bglM=trimmed.match(/^<bgl(\d+)>([\s\S]*)$/);
+      if(bglM){
+        flushPara(); flushList();
+        tableBuf.push({single:parseInt(bglM[1],10), val:bglM[2].trim()});
         continue;
       }
       const m=line.match(/^(\S+)\s+([\s\S]*)$/);
@@ -218,5 +232,5 @@
     return html;
   }
 
-  return { parse: parse, css: CSS, version: '0.2.0' };
+  return { parse: parse, css: CSS, version: '0.3.0' };
 }));
