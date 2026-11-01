@@ -164,6 +164,19 @@ bg 白菜bg 2元
 
 `.ywb` 就是易文本源码的 UTF-8 纯文本文件，可用本编辑器导入 / 导出，也可用任意文本编辑器打开。导出 HTML 时会自动生成一份带样式的独立网页。
 
+## 📦 给其他开发者（集成库）
+
+如果你要在**自己的网站 / 应用里识别并渲染易文本**，不用自己写解析器——直接用我们抽离的独立库：
+
+- **`yitext.js`**：零依赖 UMD 库，浏览器 `<script>` 或 Node `require` 都能用，暴露 `YiText.parse(src, options)`。
+- **[`集成与使用文档.md`](./集成与使用文档.md)**：面向开发者的接口文档，含"其他网站如何识别易文本"的约定与探测方案、浏览器/Node/前端框架/服务端示例、安全说明。
+- **[`语法速查表.md`](./语法速查表.md)**：完整语法对照表，可直接发给用户或协作者学习。
+
+```js
+const YiText = require('./yitext.js');
+const html = YiText.parse(yourYiText, { css: true }); // css:true 自动带默认样式
+```
+
 ## 📜 协议
 
 [MIT](LICENSE) © likeweixue
