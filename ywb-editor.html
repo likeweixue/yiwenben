@@ -168,27 +168,29 @@
           <tr><td>斜体</td><td><code>xt</code> + 空格 + 内容</td><td>整行斜体</td></tr>
           <tr><td>下划线</td><td><code>xhx</code> + 空格 + 内容</td><td></td></tr>
           <tr><td>高亮</td><td><code>gl</code> + 空格 + 内容</td><td>荧光笔效果</td></tr>
-          <tr><td>删除线</td><td><code>scx</code> + 空格 + 内容</td><td></td></tr>
+          <tr><td>删除线</td><td><code>scx</code> / <code>sc</code> + 空格 + 内容</td><td></td></tr>
+          <tr><td>颜色</td><td><code>ys#ff0000</code> / <code>ys255,0,0</code> + 空格 + 内容</td><td>整行着色，支持十六进制 <code>#rgb/#rrggbb</code> 或 <code>r,g,b</code> 写法</td></tr>
+          <tr><td>字号</td><td><code>zh1</code> / <code>zh2</code>（及 <code>zh</code>+数字）+ 空格 + 内容</td><td>整行放大，数字越大字越大</td></tr>
           <tr><td>引用</td><td><code>yy</code> + 空格 + 内容</td><td></td></tr>
-          <tr><td>无序列表</td><td><code>wxlb</code> + 空格 + 内容</td><td>连续多行自动合并为一个列表</td></tr>
-          <tr><td>有序列表</td><td><code>yxlb</code> + 空格 + 内容</td><td>连续多行自动合并</td></tr>
-          <tr><td>代码块</td><td><code>dmk</code> 开 / <code>dmk</code> 闭</td><td>单独一行 <code>dmk</code> 开始，再单独一行 <code>dmk</code> 结束；可写 <code>dmk js</code> 标注语言</td></tr>
+          <tr><td>无序列表</td><td><code>wxlb</code> / <code>d</code> + 空格 + 内容</td><td>连续多行自动合并为一个列表；<code>d</code> 取「点」的首字母，对应无序号的项目符号</td></tr>
+          <tr><td>有序列表</td><td><code>yxlb</code> + 空格 + 内容</td><td>连续多行自动合并；<code>lb</code> 暂未启用，待确定无序/有序</td></tr>
+          <tr><td>代码块</td><td><code>dmk</code> / <code>dm</code> 开 / <code>dmk</code> / <code>dm</code> 闭</td><td>单独一行 <code>dmk</code>（或 <code>dm</code>）开始，再单独一行同名结束；可写 <code>dmk js</code> 标注语言</td></tr>
           <tr><td>行内代码</td><td><code>hndm</code> + 空格 + 内容</td><td></td></tr>
-          <tr><td>上标</td><td><code>sb</code> + 空格 + 内容</td><td></td></tr>
-          <tr><td>下标</td><td><code>xb</code> + 空格 + 内容</td><td></td></tr>
+          <tr><td>上标</td><td><code>sb</code> / <code>sjb</code> + 空格 + 内容</td><td></td></tr>
+          <tr><td>下标</td><td><code>xb</code> / <code>xjb</code> + 空格 + 内容</td><td></td></tr>
           <tr><td>提示框</td><td><code>tsk</code> + 空格 + 内容</td><td>可选类型：<code>tsk info|success|warn|danger 内容</code></td></tr>
-          <tr><td>折叠内容</td><td><code>zdnr 标题</code> 开 / <code>zdnr</code> 闭</td><td>中间多行为折叠正文</td></tr>
+          <tr><td>折叠内容</td><td><code>zdnr 标题</code> / <code>zd 标题</code> 开 / <code>zdnr</code> / <code>zd</code> 闭</td><td>中间多行为折叠正文</td></tr>
           <tr><td>分割线</td><td><code>fgx</code></td><td>单独一行</td></tr>
           <tr><td>换行</td><td><code>hh</code></td><td>单独一行，插入空行间距</td></tr>
           <tr><td>分页</td><td><code>fy</code></td><td>单独一行，虚线分页标记</td></tr>
           <tr><td>目录</td><td><code>ml</code></td><td>自动收集此前所有标题</td></tr>
           <tr><td>时间戳</td><td><code>sj</code></td><td>插入当前时间（随编辑更新）</td></tr>
           <tr><td>表格</td><td><code>bg 单元格1bg 单元格2bg 单元格3</code><br>下一行继续写 <code>bg …</code> 即同一表格的下一行</td><td><code>bg</code> 代表「竖」（单元格分隔），<b>每行 = 表格的一行</b>；连续多行 <code>bg</code> 自动合并成一个表格；空一行再写可另起一个表格；首行自动作为表头</td></tr>
-          <tr><td>居左</td><td><code>jzuo</code> + 空格 + 内容</td><td></td></tr>
-          <tr><td>居中</td><td><code>jzong</code> + 空格 + 内容</td><td></td></tr>
-          <tr><td>居右</td><td><code>jyou</code> + 空格 + 内容</td><td></td></tr>
+          <tr><td>居左</td><td><code>jzuo</code> / <code>kz</code> + 空格 + 内容</td><td></td></tr>
+          <tr><td>居中</td><td><code>jzong</code> / <code>zj</code> + 空格 + 内容</td><td></td></tr>
+          <tr><td>居右</td><td><code>jyou</code> / <code>ky</code> + 空格 + 内容</td><td></td></tr>
           <tr><td>普通链接</td><td><code>lj 显示文字|网址</code></td><td>无 <code>|</code> 时整段作为网址</td></tr>
-          <tr><td>图片链接</td><td><code>tplj 替代文字|图片地址</code></td><td></td></tr>
+          <tr><td>图片链接</td><td><code>tplj / tclj / zplj 替代文字|图片地址</code></td><td>三种写法等价</td></tr>
           <tr><td>视频链接</td><td><code>splj 说明|视频地址</code></td><td>自带播放器</td></tr>
           <tr><td>音频链接</td><td><code>yplj 说明|音频地址</code></td><td>自带播放器</td></tr>
           <tr><td>附件链接</td><td><code>fjlj 文件名|文件地址</code></td><td></td></tr>
@@ -208,13 +210,13 @@
   'use strict';
   const NUM = { yi:1, er:2, san:3, si:4, wu:5, liu:6, qi:7, ba:8, jiu:9, shi:10 };
   const TOKENS = {
-    jc:'strong', yy:'blockquote', xt:'em', xhx:'u', gl:'mark', scx:'s',
-    tsk:'tip', hndm:'code', sb:'sup', xb:'sub',
-    jzong:'center', jzuo:'left', jyou:'right',
-    lj:'link', tplj:'image', splj:'video', yplj:'audio', fjlj:'file', jz:'footnote',
-    wxlb:'ul', yxlb:'ol',
+    jc:'strong', yy:'blockquote', xt:'em', xhx:'u', gl:'mark', scx:'s', sc:'s',
+    tsk:'tip', hndm:'code', sb:'sup', sjb:'sup', xb:'sub', xjb:'sub',
+    jzong:'center', zj:'center', jzuo:'left', kz:'left', jyou:'right', ky:'right',
+    lj:'link', tplj:'image', tclj:'image', zplj:'image', splj:'video', yplj:'audio', fjlj:'file', jz:'footnote',
+    wxlb:'ul', d:'ul', yxlb:'ol',
     fgx:'hr', hh:'br', fy:'page', ml:'toc', sj:'time',
-    zdnr:'details', dmk:'codeblock'
+    zdnr:'details', zd:'details', dmk:'codeblock', dm:'codeblock'
   };
   const TIP_TYPES = ['info','success','warn','danger'];
   const TIP_LABEL = { info:'提示', success:'成功', warn:'注意', danger:'警告' };
@@ -258,8 +260,8 @@
     for(let idx=0; idx<lines.length; idx++){
       const raw=lines[idx];
       const line=raw.replace(/\s+$/,'');
-      if(inCode){ if(line.trim()==='dmk'){ flushCode(); continue; } codeBuf.push(raw); continue; }
-      if(inDetails){ if(line.trim()==='zdnr'){ flushDetails(); continue; } detBuf.push(raw); continue; }
+      if(inCode){ if(line.trim()==='dmk'||line.trim()==='dm'){ flushCode(); continue; } codeBuf.push(raw); continue; }
+      if(inDetails){ if(line.trim()==='zdnr'||line.trim()==='zd'){ flushDetails(); continue; } detBuf.push(raw); continue; }
       if(line.trim()===''){ flushPara(); flushList(); flushTable(); continue; }
       const trimmed=line.trim();
       if(trimmed==='bg'||trimmed.startsWith('bg ')){
@@ -272,6 +274,27 @@
       const m=line.match(/^(\S+)\s+([\s\S]*)$/);
       let token=null,rest='';
       if(m){ token=m[1]; rest=m[2]; } else { token=line.trim(); rest=''; }
+      // 颜色：ys + 颜色值（#hex 或 r,g,b 或 rgb(...)） + 空格 + 内容
+      const ysM=token.match(/^ys(.+)$/);
+      if(ysM){
+        const cv=ysM[1];
+        let style='';
+        if(/^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(cv)) style='color:'+cv;
+        else if(/^\d{1,3},\d{1,3},\d{1,3}$/.test(cv)) style='color:rgb('+cv+')';
+        else if(/^rgba?\([^)]+\)$/i.test(cv)) style='color:'+cv;
+        flushPara(); flushList(); flushTable();
+        out+='<p class="yi-color"'+(style?' style="'+style+'"':'')+'>'+esc(rest)+'</p>';
+        continue;
+      }
+      // 字号：zh + 数字（zh1/zh2…）
+      const zhM=token.match(/^zh(\d+)$/);
+      if(zhM){
+        const n=parseInt(zhM[1],10);
+        const size = n===1?'1.25em' : n===2?'1.6em' : (1+0.35*n)+'em';
+        flushPara(); flushList(); flushTable();
+        out+='<p class="yi-size" style="font-size:'+size+'">'+esc(rest)+'</p>';
+        continue;
+      }
       if(NUM[token]!==undefined){
         flushPara(); flushList(); flushTable();
         const n=NUM[token], lvl=Math.min(n,6), hid='yi-h-'+headings.length;
@@ -475,6 +498,17 @@
     'bg 苹果bg 5元',
     'bg 蔬菜bg 单价',
     'bg 白菜bg 2元',
+    'er 颜色、字号与更多语法',
+    'ys#e53935 这一行是红色',
+    'ys30,136,229 这一行是蓝色（r,g,b 写法）',
+    'zh1 这一行字号稍大（zh1）',
+    'zh2 这一行字号更大（zh2）',
+    'sc 删除线也可以用 sc 触发',
+    'sjb 上角标也能用 sjb 触发',
+    'xjb 下角标也能用 xjb 触发',
+    'd 无序列表也可以用 d（点）触发',
+    'd 无序列表第二项',
+    'tclj 图片别名 tclj 示例|https://picsum.photos/480/240',
     'fgx',
     'er 目录与时间戳',
     'ml',
