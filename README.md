@@ -181,6 +181,18 @@ const YiText = require('./yitext.js');
 const html = YiText.parse(yourYiText, { css: true }); // css:true 自动带默认样式
 ```
 
+## 🚀 发版
+
+项目内置了一键发版脚本，会自动完成「同步库版本号 → 提交 → 推送 → 打 tag → 创建 Release」全流程：
+
+```bash
+./release.sh v0.3.0 "本次版本说明"
+```
+
+- 版本号格式：`v主.次.修订`（如 `v0.3.0`）
+- 依赖：已安装 `gh` CLI 并登录（`gh auth login`）
+- 说明文字会作为 GitHub Release 的正文
+
 ## 📜 协议
 
 [MIT](LICENSE) © likeweixue
