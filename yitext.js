@@ -1,6 +1,6 @@
 /*!
  * 易文本 YiText —— 轻量中文标记语言解析库
- * 版本：0.3.0
+ * 版本：0.4.0
  *
  * 用法：
  *   浏览器：<script src="yitext.js"></script>
@@ -30,7 +30,7 @@
     tsk:'tip', hndm:'code', sb:'sup', sjb:'sup', xb:'sub', xjb:'sub',
     jzong:'center', zj:'center', jzuo:'left', kz:'left', jyou:'right', ky:'right',
     lj:'link', tplj:'image', tclj:'image', zplj:'image', splj:'video', yplj:'audio', fjlj:'file', jz:'footnote',
-    wxlb:'ul', d:'ul', yxlb:'ol',
+    wxlb:'ul', d:'ul', yxlb:'ol', rw:'task',
     fgx:'hr', hh:'br', fy:'page', ml:'toc', sj:'time',
     zdnr:'details', zd:'details', dmk:'codeblock', dm:'codeblock'
   };
@@ -40,6 +40,10 @@
   function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
   function safeUrl(u){u=String(u).trim(); if(/^\s*javascript:/i.test(u)) return '#'; return esc(u);}
   function splitPair(s){s=String(s); const i=s.indexOf('|'); if(i<0) return [s.trim(),s.trim()]; return [s.slice(0,i).trim(), s.slice(i+1).trim()];}
+  function isMdSep(s){ return /^\s*\|?\s*:?-{1,}:?\s*(\|\s*:?-{1,}:?\s*)+\|?\s*$/.test(s); }
+  function isMdRow(s){ return /^\s*\|.*\|\s*$/.test(s); }
+  function splitMdCells(s){ s=String(s).trim().replace(/^\|/,'').replace(/\|$/,''); return s.split('|').map(c=>c.trim()); }
+  function parseMdAligns(sep){ return splitMdCells(sep).map(c=>{ if(/^:.*:$/.test(c)) return 'center'; if(/:$/.test(c)) return 'right'; return 'left'; }); }
   function renderToc(h){
     if(!h.length) return '<div class="toc toc-empty">（暂无标题）</div>';
     let s='<nav class="toc"><div class="toc-title">目录</div><ul class="toc-list">';
@@ -54,53 +58,56 @@
     let inCode=false,codeLang='',codeBuf=[];
     let inDetails=false,detSummary='',detBuf=[];
     let listType=null,listBuf=[];
-    let tableBuf=[];
     let headings=[];
     let footnotes=[],fnCount=0;
     let paraBuf=[];
     function flushPara(){ if(paraBuf.length){ out+='<p>'+paraBuf.map(esc).join('<br>')+'</p>'; paraBuf=[]; } }
-    function flushList(){ if(listType){ out+='<'+listType+' class="yi-list">'+listBuf.map(li=>'<li>'+esc(li)+'</li>').join('')+'</'+listType+'>'; listType=null; listBuf=[]; } }
+    function flushList(){ if(listType){
+      if(listType==='task'){
+        out+='<ul class="yi-list yi-task-list">'+listBuf.map(li=>'<li class="yi-task"><input type="checkbox" disabled> '+esc(li)+'</li>').join('')+'</ul>';
+      } else {
+        out+='<'+listType+' class="yi-list">'+listBuf.map(li=>'<li>'+esc(li)+'</li>').join('')+'</'+listType+'>';
+      }
+      listType=null; listBuf=[];
+    } }
     function flushDetails(){ if(inDetails){ out+='<details class="yi-details"><summary>'+esc(detSummary)+'</summary><div class="details-body">'+detBuf.map(esc).join('<br>')+'</div></details>'; inDetails=false; detBuf=[]; } }
     function flushCode(){ if(inCode){ out+='<pre class="yi-codeblock'+(codeLang?' lang-'+esc(codeLang):'')+'"><code>'+esc(codeBuf.join('\n'))+'</code></pre>'; inCode=false; codeBuf=[]; codeLang=''; } }
-    function flushTable(){ if(tableBuf.length){
-      const rows=tableBuf; tableBuf=[];
-      const header=(rows[0]&&rows[0].cells)||[];
-      const cols=header.length;
-      let t='<table class="yi-table"><thead><tr>';
-      header.forEach(c=>{ t+='<th>'+esc(c)+'</th>'; });
-      t+='</tr></thead><tbody>';
-      for(let ri=1; ri<rows.length; ri++){
-        const r=rows[ri];
-        const cells=new Array(cols).fill('');
-        if(r.single!==undefined){
-          const idx=r.single-1;
-          if(idx>=0&&idx<cols) cells[idx]=r.val;
-        } else {
-          for(let c=0;c<cols;c++){ if(r.cells[c]!==undefined) cells[c]=r.cells[c]; }
-        }
-        t+='<tr>'+cells.map(c=>'<td>'+esc(c)+'</td>').join('')+'</tr>';
-      }
-      t+='</tbody></table>'; out+=t;
-    } }
-    function flushAll(){ flushPara(); flushList(); flushDetails(); flushCode(); flushTable(); }
+    function flushAll(){ flushPara(); flushList(); flushDetails(); flushCode(); }
     for(let idx=0; idx<lines.length; idx++){
       const raw=lines[idx];
       const line=raw.replace(/\s+$/,'');
       if(inCode){ if(line.trim()==='dmk'||line.trim()==='dm'){ flushCode(); continue; } codeBuf.push(raw); continue; }
       if(inDetails){ if(line.trim()==='zdnr'||line.trim()==='zd'){ flushDetails(); continue; } detBuf.push(raw); continue; }
-      if(line.trim()===''){ flushPara(); flushList(); flushTable(); continue; }
+      if(line.trim()===''){ flushPara(); flushList(); continue; }
       const trimmed=line.trim();
-      // 表格（invitespt 提议语法）：<bgh> 起始一行（首行为表头），<bglN> 单列数据行
-      if(trimmed.startsWith('<bgh>')){
+      if(trimmed==='---'){ flushPara(); flushList(); out+='<hr class="yi-hr">'; continue; }
+      if(trimmed==='==='){ flushPara(); flushList(); out+='<hr class="yi-hr yi-hr-double">'; continue; }
+      if(trimmed==='···'||trimmed==='...'){ flushPara(); flushList(); out+='<hr class="yi-hr yi-hr-dashed">'; continue; }
+      if(trimmed==='～～～'||trimmed==='~~~'){ flushPara(); flushList(); out+='<hr class="yi-hr yi-hr-wavy">'; continue; }
+      if(isMdRow(trimmed) && isMdSep((lines[idx+1]||'').trim())){
         flushPara(); flushList();
-        const cells=trimmed.slice(5).split('|').map(c=>c.trim());
-        tableBuf.push({cells:cells});
-        continue;
-      }
-      const bglM=trimmed.match(/^<bgl(\d+)>([\s\S]*)$/);
-      if(bglM){
-        flushPara(); flushList();
-        tableBuf.push({single:parseInt(bglM[1],10), val:bglM[2].trim()});
+        const header=splitMdCells(trimmed);
+        const aligns=parseMdAligns((lines[idx+1]||'').trim());
+        let last=idx+1;
+        const dataRows=[];
+        while(last+1<lines.length && isMdRow((lines[last+1]||'').trim())){
+          last++;
+          dataRows.push(splitMdCells(lines[last].trim()));
+        }
+        let t='<table class="yi-table"><thead><tr>';
+        header.forEach((c,i)=>{ t+='<th'+(aligns[i]&&aligns[i]!=='left'?' style="text-align:'+aligns[i]+'"':'')+'>'+esc(c)+'</th>'; });
+        t+='</tr></thead><tbody>';
+        for(const row of dataRows){
+          t+='<tr>';
+          for(let i=0;i<header.length;i++){
+            const c=row[i]!==undefined?row[i]:'';
+            t+='<td'+(aligns[i]&&aligns[i]!=='left'?' style="text-align:'+aligns[i]+'"':'')+'>'+esc(c)+'</td>';
+          }
+          t+='</tr>';
+        }
+        t+='</tbody></table>';
+        out+=t;
+        idx=last;
         continue;
       }
       const m=line.match(/^(\S+)\s+([\s\S]*)$/);
@@ -113,7 +120,7 @@
         if(/^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i.test(cv)) style='color:'+cv;
         else if(/^\d{1,3},\d{1,3},\d{1,3}$/.test(cv)) style='color:rgb('+cv+')';
         else if(/^rgba?\([^)]+\)$/i.test(cv)) style='color:'+cv;
-        flushPara(); flushList(); flushTable();
+        flushPara(); flushList();
         out+='<p class="yi-color"'+(style?' style="'+style+'"':'')+'>'+esc(rest)+'</p>';
         continue;
       }
@@ -121,12 +128,12 @@
       if(zhM){
         const n=parseInt(zhM[1],10);
         const size = n===1?'1.25em' : n===2?'1.6em' : (1+0.35*n)+'em';
-        flushPara(); flushList(); flushTable();
+        flushPara(); flushList();
         out+='<p class="yi-size" style="font-size:'+size+'">'+esc(rest)+'</p>';
         continue;
       }
       if(NUM[token]!==undefined){
-        flushPara(); flushList(); flushTable();
+        flushPara(); flushList();
         const n=NUM[token], lvl=Math.min(n,6), hid='yi-h-'+headings.length;
         headings.push({level:lvl,id:hid,text:rest});
         out+='<h'+lvl+' id="'+hid+'" class="yi-h yi-h'+lvl+'">'+esc(rest)+'</h'+lvl+'>';
@@ -134,8 +141,8 @@
       }
       const type=TOKENS[token];
       if(type){
-        flushPara(); flushTable();
-        if(type!=='ul'&&type!=='ol') flushList();
+        flushPara();
+        if(type!=='ul'&&type!=='ol'&&type!=='task') flushList();
         switch(type){
           case 'strong': out+='<p class="yi-strong"><strong>'+esc(rest)+'</strong></p>'; break;
           case 'blockquote': out+='<blockquote class="yi-quote">'+esc(rest)+'</blockquote>'; break;
@@ -158,6 +165,7 @@
           case 'footnote': { fnCount++; footnotes.push({n:fnCount,text:rest}); out+='<sup class="yi-fn"><a id="fnref'+fnCount+'" href="#fn'+fnCount+'">['+fnCount+']</a></sup>'; break; }
           case 'ul': if(listType&&listType!=='ul') flushList(); listType='ul'; listBuf.push(rest); break;
           case 'ol': if(listType&&listType!=='ol') flushList(); listType='ol'; listBuf.push(rest); break;
+          case 'task': if(listType&&listType!=='task') flushList(); listType='task'; listBuf.push(rest); break;
           case 'hr': out+='<hr class="yi-hr">'; break;
           case 'br': out+='<div class="yi-br"></div>'; break;
           case 'page': out+='<div class="yi-page-break"><span>分页</span></div>'; break;
@@ -169,7 +177,6 @@
         continue;
       }
       if(listType) flushList();
-      flushTable();
       paraBuf.push(line);
     }
     flushAll();
@@ -207,11 +214,16 @@
     '.yi-doc .yi-media{margin:.8em 0;}.yi-doc .yi-media video,.yi-doc .yi-media audio{max-width:100%;}',
     '.yi-doc .yi-file{display:inline-block;background:#f6f8fa;border:1px solid #d0d7de;border-radius:6px;padding:.4em .8em;color:#1f2328;text-decoration:none;}',
     '.yi-doc .yi-list{padding-left:1.6em;margin:.6em 0;}',
-    '.yi-doc .yi-table{border-collapse:collapse;width:100%;margin:.8em 0;font-size:.95em;}',
+    '.yi-doc .yi-task-list{list-style:none;padding-left:.2em;}',
+    '.yi-doc .yi-task input{margin-right:.4em;vertical-align:middle;}',
+    '.yi-doc .yi-table{border-collapse:collapse;width:100%;margin:.8em 0;font-size:.95em;overflow:hidden;border-radius:4px;}',
     '.yi-doc .yi-table th,.yi-doc .yi-table td{border:1px solid #d0d7de;padding:.5em .7em;text-align:left;}',
     '.yi-doc .yi-table thead th{background:#f6f8fa;font-weight:700;}',
     '.yi-doc .yi-table tbody tr:nth-child(even){background:#f6f8fa;}',
     '.yi-doc .yi-hr{border:none;border-top:1px solid #d0d7de;margin:1.2em 0;}',
+    '.yi-doc .yi-hr-double{border-top:3px double #d0d7de;}',
+    '.yi-doc .yi-hr-dashed{border-top:1px dashed #d0d7de;}',
+    '.yi-doc .yi-hr-wavy{border:none;height:10px;background:url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'40\' height=\'8\' viewBox=\'0 0 40 8\' preserveAspectRatio=\'none\'%3E%3Cpath d=\'M0 4 Q5 0 10 4 T20 4 T30 4 T40 4\' fill=\'none\' stroke=\'%238b949e\' stroke-width=\'1.5\'/%3E%3C/svg%3E") repeat-x center/auto 10px;}',
     '.yi-doc .yi-page-break{border-top:1px dashed #d0d7de;text-align:center;color:#8b949e;margin:1.2em 0;}',
     '.yi-doc .yi-page-break span{background:#fff;padding:0 .5em;position:relative;top:-.8em;}',
     '.yi-doc .yi-time{color:#57606a;font-size:.85em;}',
@@ -232,5 +244,5 @@
     return html;
   }
 
-  return { parse: parse, css: CSS, version: '0.3.0' };
+  return { parse: parse, css: CSS, version: '0.4.0' };
 }));
