@@ -66,17 +66,10 @@ LIB_VERSION="${VERSION#v}"   # 去掉开头的 v
 
 # ---- 同步库版本号 ----
 if [[ -f yitext.js ]]; then
-  if grep -q "version: '[0-9.]*'" yitext.js; then
-    # 精确替换 return 语句里的 version
-    if grep -q "version: '$LIB_VERSION'" yitext.js; then
-      echo "✓ yitext.js 已是 $LIB_VERSION"
-    else
-      sed -i '' -E "s/version: '[0-9]+\.[0-9]+\.[0-9]+'/version: '$LIB_VERSION'/" yitext.js
-      echo "✓ yitext.js 版本已同步为 $LIB_VERSION"
-    fi
-  fi
-  # 同步文件头注释里的版本号
-  sed -i '' -E "s/版本：[0-9]+\.[0-9]+\.[0-9]+/版本：$LIB_VERSION/" yitext.js
+  # 用 perl 做原地替换（macOS/Linux 通用，避免 BSD sed -i 的兼容坑）
+  perl -i -pe "s/version: '[0-9]+\.[0-9]+\.[0-9]+'/version: '$LIB_VERSION'/" yitext.js
+  perl -i -pe "s/版本：[0-9]+\.[0-9]+\.[0-9]+/版本：$LIB_VERSION/" yitext.js
+  echo "✓ yitext.js 版本已同步为 $LIB_VERSION"
 fi
 
 # ---- 提交（若有改动）----
