@@ -1,6 +1,6 @@
 /*!
  * 易文本 YiText —— 轻量中文标记语言解析库
- * 版本：0.4.0
+ * 版本：0.5.0
  *
  * 用法：
  *   浏览器：<script src="yitext.js"></script>
@@ -44,6 +44,45 @@
   function isMdRow(s){ return /^\s*\|.*\|\s*$/.test(s); }
   function splitMdCells(s){ s=String(s).trim().replace(/^\|/,'').replace(/\|$/,''); return s.split('|').map(c=>c.trim()); }
   function parseMdAligns(sep){ return splitMdCells(sep).map(c=>{ if(/^:.*:$/.test(c)) return 'center'; if(/:$/.test(c)) return 'right'; return 'left'; }); }
+  const V_PUNCT = '，。！？、；：…—·‘’“”（）《》〈〉「」『』【】〔〕';
+  function isPunct(ch){ return V_PUNCT.indexOf(ch)>=0 || /[\u3000-\u303f\uff00-\uffef]/.test(ch); }
+  function isCJK(ch){ return /[\u4e00-\u9fff]/.test(ch); }
+  function splitVerticalCells(text){
+    const cells=[];
+    let cur=null;
+    const isLatinNum = ch => /[0-9A-Za-z]/.test(ch);
+    for(const ch of text){
+      if(ch===' '||ch==='\t'){ continue; }
+      if(isPunct(ch)){
+        if(cur===null){ cur={c:'',p:''}; cells.push(cur); }
+        cur.p+=ch;
+      } else if(isLatinNum(ch) && cur && cur.c!=='' && isLatinNum(cur.c)){
+        cur.c+=ch;
+      } else {
+        cur={c:ch,p:''}; cells.push(cur);
+      }
+    }
+    return cells;
+  }
+  function renderVertical(lines, direction){
+    if(!lines.length) return '';
+    const dirClass = direction==='lr' ? 'yi-v-lr' : 'yi-v-rl';
+    let s='<div class="yi-vertical '+dirClass+'">';
+    for(const line of lines){
+      const cells=splitVerticalCells(line);
+      s+='<div class="yi-vcol">';
+      for(const cell of cells){
+        const num = cell.c!=='' && !isCJK(cell.c);
+        s+='<span class="yi-vcell'+(num?' yi-vnum':'')+'">';
+        if(cell.c) s+='<span class="yi-vchar">'+esc(cell.c)+'</span>';
+        if(cell.p) s+='<span class="yi-vpunct">'+esc(cell.p)+'</span>';
+        s+='</span>';
+      }
+      s+='</div>';
+    }
+    s+='</div>';
+    return s;
+  }
   function renderToc(h){
     if(!h.length) return '<div class="toc toc-empty">（暂无标题）</div>';
     let s='<nav class="toc"><div class="toc-title">目录</div><ul class="toc-list">';
@@ -61,6 +100,7 @@
     let headings=[];
     let footnotes=[],fnCount=0;
     let paraBuf=[];
+    let inVertical=false, vDirection='rl', vBuf=[];
     function flushPara(){ if(paraBuf.length){ out+='<p>'+paraBuf.map(esc).join('<br>')+'</p>'; paraBuf=[]; } }
     function flushList(){ if(listType){
       if(listType==='task'){
@@ -71,15 +111,29 @@
       listType=null; listBuf=[];
     } }
     function flushDetails(){ if(inDetails){ out+='<details class="yi-details"><summary>'+esc(detSummary)+'</summary><div class="details-body">'+detBuf.map(esc).join('<br>')+'</div></details>'; inDetails=false; detBuf=[]; } }
+    function flushVertical(){ if(inVertical){ out+=renderVertical(vBuf, vDirection); inVertical=false; vDirection='rl'; vBuf=[]; } }
     function flushCode(){ if(inCode){ out+='<pre class="yi-codeblock'+(codeLang?' lang-'+esc(codeLang):'')+'"><code>'+esc(codeBuf.join('\n'))+'</code></pre>'; inCode=false; codeBuf=[]; codeLang=''; } }
-    function flushAll(){ flushPara(); flushList(); flushDetails(); flushCode(); }
+    function flushAll(){ flushPara(); flushList(); flushDetails(); flushCode(); flushVertical(); }
     for(let idx=0; idx<lines.length; idx++){
       const raw=lines[idx];
       const line=raw.replace(/\s+$/,'');
       if(inCode){ if(line.trim()==='dmk'||line.trim()==='dm'){ flushCode(); continue; } codeBuf.push(raw); continue; }
       if(inDetails){ if(line.trim()==='zdnr'||line.trim()==='zd'){ flushDetails(); continue; } detBuf.push(raw); continue; }
+      if(inVertical){
+        const vt=line.trim();
+        if(vt==='heng'){ flushVertical(); continue; }
+        vBuf.push(line);
+        continue;
+      }
       if(line.trim()===''){ flushPara(); flushList(); continue; }
       const trimmed=line.trim();
+      if(trimmed==='shu'||trimmed.startsWith('shu ')){
+        const arg=(trimmed==='shu'?'':trimmed.slice(3).trim());
+        flushPara(); flushList(); flushDetails(); flushCode();
+        vDirection = arg==='zuo' ? 'lr' : 'rl';
+        inVertical=true; vBuf=[];
+        continue;
+      }
       if(trimmed==='---'){ flushPara(); flushList(); out+='<hr class="yi-hr">'; continue; }
       if(trimmed==='==='){ flushPara(); flushList(); out+='<hr class="yi-hr yi-hr-double">'; continue; }
       if(trimmed==='···'||trimmed==='...'){ flushPara(); flushList(); out+='<hr class="yi-hr yi-hr-dashed">'; continue; }
@@ -220,6 +274,13 @@
     '.yi-doc .yi-table th,.yi-doc .yi-table td{border:1px solid #d0d7de;padding:.5em .7em;text-align:left;}',
     '.yi-doc .yi-table thead th{background:#f6f8fa;font-weight:700;}',
     '.yi-doc .yi-table tbody tr:nth-child(even){background:#f6f8fa;}',
+    '.yi-doc .yi-vertical{display:flex;flex-direction:row;margin:1em 0;line-height:1;overflow-x:auto;}',
+    '.yi-doc .yi-vertical.yi-v-rl{justify-content:flex-end;}.yi-doc .yi-vertical.yi-v-lr{justify-content:flex-start;}',
+    '.yi-doc .yi-vcol{display:flex;flex-direction:column;align-items:center;margin:0 .25em;}',
+    '.yi-doc .yi-vcell{display:flex;flex-direction:column;align-items:center;}',
+    '.yi-doc .yi-vchar{font-size:1.2em;line-height:1.2;}',
+    '.yi-doc .yi-vcell.yi-vnum .yi-vchar{writing-mode:horizontal-tb;text-orientation:upright;letter-spacing:.05em;}',
+    '.yi-doc .yi-vpunct{font-size:.75em;line-height:1;color:#57606a;}',
     '.yi-doc .yi-hr{border:none;border-top:1px solid #d0d7de;margin:1.2em 0;}',
     '.yi-doc .yi-hr-double{border-top:3px double #d0d7de;}',
     '.yi-doc .yi-hr-dashed{border-top:1px dashed #d0d7de;}',
@@ -244,5 +305,5 @@
     return html;
   }
 
-  return { parse: parse, css: CSS, version: '0.4.0' };
+  return { parse: parse, css: CSS, version: '0.5.0' };
 }));

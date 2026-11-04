@@ -133,6 +133,15 @@
   #preview .yi-table th,#preview .yi-table td{border:1px solid var(--border-strong); padding:.5em .8em; text-align:left; vertical-align:top;}
   #preview .yi-table thead th{background:var(--accent-soft); color:var(--text); font-weight:600;}
   #preview .yi-table tbody tr:nth-child(even){background:var(--panel-2);}
+  /* 竖排 */
+  #preview .yi-vertical{display:flex; flex-direction:row; margin:1em 0; line-height:1; overflow-x:auto;}
+  #preview .yi-vertical.yi-v-rl{justify-content:flex-end;}
+  #preview .yi-vertical.yi-v-lr{justify-content:flex-start;}
+  #preview .yi-vcol{display:flex; flex-direction:column; align-items:center; margin:0 .25em;}
+  #preview .yi-vcell{display:flex; flex-direction:column; align-items:center;}
+  #preview .yi-vchar{font-size:1.2em; line-height:1.2;}
+  #preview .yi-vcell.yi-vnum .yi-vchar{writing-mode:horizontal-tb; text-orientation:upright; letter-spacing:.05em;}
+  #preview .yi-vpunct{font-size:.75em; line-height:1; color:var(--text-soft);}
   #preview .yi-footnotes{margin-top:2em; font-size:.9em; color:var(--text-soft);}
   #preview .yi-time{display:inline-block; background:var(--code-bg); border:1px solid var(--border); border-radius:6px; padding:.1em .5em; font-size:.85em; color:var(--text-soft);}
   #preview .toc{background:var(--panel-2); border:1px solid var(--border); border-radius:10px; padding:.8em 1.2em; margin:1em 0; display:inline-block; min-width:200px;}
@@ -246,6 +255,7 @@
           <tr><td>目录</td><td><code>ml</code></td><td>自动收集此前所有标题</td></tr>
           <tr><td>时间戳</td><td><code>sj</code></td><td>插入当前时间（随编辑更新）</td></tr>
           <tr><td>表格</td><td><code>| 列1 | 列2 |</code><br><code>|------|------|</code><br><code>| 数据 | 数据 |</code></td><td>Markdown 语法：第一行是表头，第二行是分隔行（<code>---</code>，可加 <code>:</code> 设置对齐），后续行为数据；单元格用 <code>|</code> 分隔</td></tr>
+          <tr><td>竖排</td><td><code>shu</code> 开 / <code>heng</code> 闭</td><td><code>shu</code> 默认从右到左（中文传统），<code>shu zuo</code> 从左到右；区块内每行一列，标点自动贴在字下方，数字/英文横向显示；<code>heng</code> 恢复横排</td></tr>
           <tr><td>居左</td><td><code>jzuo</code> / <code>kz</code> + 空格 + 内容</td><td></td></tr>
           <tr><td>居中</td><td><code>jzong</code> / <code>zj</code> + 空格 + 内容</td><td></td></tr>
           <tr><td>居右</td><td><code>jyou</code> / <code>ky</code> + 空格 + 内容</td><td></td></tr>
@@ -288,6 +298,49 @@
   function isMdRow(s){ return /^\s*\|.*\|\s*$/.test(s); }
   function splitMdCells(s){ s=String(s).trim().replace(/^\|/,'').replace(/\|$/,''); return s.split('|').map(c=>c.trim()); }
   function parseMdAligns(sep){ return splitMdCells(sep).map(c=>{ if(/^:.*:$/.test(c)) return 'center'; if(/:$/.test(c)) return 'right'; return 'left'; }); }
+  // 竖排：标点/空格处理
+  const V_PUNCT = '，。！？、；：…—·‘’“”（）《》〈〉「」『』【】〔〕';
+  function isPunct(ch){ return V_PUNCT.indexOf(ch)>=0 || /[\u3000-\u303f\uff00-\uffef]/.test(ch); }
+  function isCJK(ch){ return /[\u4e00-\u9fff]/.test(ch); }
+  // 把一段文字拆成「字」序列；标点附着到前一个字（路线2），连续标点则继续附着
+  // 连续的数字/英文字母会合并成一个「横向格」（text-combine-upright 整体横排）
+  function splitVerticalCells(text){
+    const cells=[];
+    let cur=null;
+    const isLatinNum = ch => /[0-9A-Za-z]/.test(ch);
+    for(const ch of text){
+      if(ch===' '||ch==='\t'){ continue; }
+      if(isPunct(ch)){
+        if(cur===null){ cur={c:'',p:''}; cells.push(cur); }
+        cur.p+=ch;
+      } else if(isLatinNum(ch) && cur && cur.c!=='' && isLatinNum(cur.c)){
+        cur.c+=ch;
+      } else {
+        cur={c:ch,p:''}; cells.push(cur);
+      }
+    }
+    return cells;
+  }
+  // 渲染竖排区块：lines 为区块内每一行（一列），direction 'rl'|'lr'
+  function renderVertical(lines, direction){
+    if(!lines.length) return '';
+    const dirClass = direction==='lr' ? 'yi-v-lr' : 'yi-v-rl';
+    let s='<div class="yi-vertical '+dirClass+'">';
+    for(const line of lines){
+      const cells=splitVerticalCells(line);
+      s+='<div class="yi-vcol">';
+      for(const cell of cells){
+        const num = cell.c!=='' && !isCJK(cell.c);
+        s+='<span class="yi-vcell'+(num?' yi-vnum':'')+'">';
+        if(cell.c) s+='<span class="yi-vchar">'+esc(cell.c)+'</span>';
+        if(cell.p) s+='<span class="yi-vpunct">'+esc(cell.p)+'</span>';
+        s+='</span>';
+      }
+      s+='</div>';
+    }
+    s+='</div>';
+    return s;
+  }
   function renderToc(h){
     if(!h.length) return '<div class="toc toc-empty">（暂无标题）</div>';
     let s='<nav class="toc"><div class="toc-title">目录</div><ul class="toc-list">';
@@ -304,6 +357,7 @@
     let headings=[];
     let footnotes=[],fnCount=0;
     let paraBuf=[];
+    let inVertical=false, vDirection='rl', vBuf=[];
     function flushPara(){ if(paraBuf.length){ out+='<p>'+paraBuf.map(esc).join('<br>')+'</p>'; paraBuf=[]; } }
     function flushList(){ if(listType){
       if(listType==='task'){
@@ -314,15 +368,31 @@
       listType=null; listBuf=[];
     } }
     function flushDetails(){ if(inDetails){ out+='<details class="yi-details"><summary>'+esc(detSummary)+'</summary><div class="details-body">'+detBuf.map(esc).join('<br>')+'</div></details>'; inDetails=false; detBuf=[]; } }
+    function flushVertical(){ if(inVertical){ out+=renderVertical(vBuf, vDirection); inVertical=false; vDirection='rl'; vBuf=[]; } }
     function flushCode(){ if(inCode){ out+='<pre class="yi-codeblock'+(codeLang?' lang-'+esc(codeLang):'')+'"><code>'+esc(codeBuf.join('\n'))+'</code></pre>'; inCode=false; codeBuf=[]; codeLang=''; } }
-    function flushAll(){ flushPara(); flushList(); flushDetails(); flushCode(); }
+    function flushAll(){ flushPara(); flushList(); flushDetails(); flushCode(); flushVertical(); }
     for(let idx=0; idx<lines.length; idx++){
       const raw=lines[idx];
       const line=raw.replace(/\s+$/,'');
       if(inCode){ if(line.trim()==='dmk'||line.trim()==='dm'){ flushCode(); continue; } codeBuf.push(raw); continue; }
       if(inDetails){ if(line.trim()==='zdnr'||line.trim()==='zd'){ flushDetails(); continue; } detBuf.push(raw); continue; }
+      // 竖排区块：shu 开（可带 zuo 参数）、heng 收
+      if(inVertical){
+        const vt=line.trim();
+        if(vt==='heng'){ flushVertical(); continue; }
+        vBuf.push(line);
+        continue;
+      }
       if(line.trim()===''){ flushPara(); flushList(); continue; }
       const trimmed=line.trim();
+      // 竖排开启：shu / shu zuo
+      if(trimmed==='shu'||trimmed.startsWith('shu ')){
+        const arg=(trimmed==='shu'?'':trimmed.slice(3).trim());
+        flushPara(); flushList(); flushDetails(); flushCode();
+        vDirection = arg==='zuo' ? 'lr' : 'rl';
+        inVertical=true; vBuf=[];
+        continue;
+      }
       // 分割线：---（单实线）/ ===（双实线）/ ···（虚线）/ ～～～（波浪线）
       if(trimmed==='---'){ flushPara(); flushList(); out+='<hr class="yi-hr">'; continue; }
       if(trimmed==='==='){ flushPara(); flushList(); out+='<hr class="yi-hr yi-hr-double">'; continue; }
@@ -561,6 +631,13 @@
       +'.yi-table th,.yi-table td{border:1px solid #cfd6e0;padding:.5em .8em;text-align:left;vertical-align:top;}\n'
       +'.yi-table thead th{background:#eaf0ff;font-weight:600;}\n'
       +'.yi-table tbody tr:nth-child(even){background:#fbfcfe;}\n'
+      +'.yi-vertical{display:flex;flex-direction:row;margin:1em 0;line-height:1;overflow-x:auto;}\n'
+      +'.yi-vertical.yi-v-rl{justify-content:flex-end;}.yi-vertical.yi-v-lr{justify-content:flex-start;}\n'
+      +'.yi-vcol{display:flex;flex-direction:column;align-items:center;margin:0 .25em;}\n'
+      +'.yi-vcell{display:flex;flex-direction:column;align-items:center;}\n'
+      +'.yi-vchar{font-size:1.2em;line-height:1.2;}\n'
+      +'.yi-vcell.yi-vnum .yi-vchar{writing-mode:horizontal-tb;text-orientation:upright;letter-spacing:.05em;}\n'
+      +'.yi-vpunct{font-size:.75em;line-height:1;color:#5b6472;}\n'
       +'.yi-footnotes{margin-top:2em;font-size:.9em;color:#5b6472;}\n'
       +'</style>\n</head>\n<body>\n'+body+'\n</body>\n</html>';
     download('易文本文档.html', doc, 'text/html;charset=utf-8');
@@ -628,6 +705,13 @@
     '===',
     '···',
     '～～～',
+    'er 竖排',
+    'shu',
+    '床前明月光，',
+    '疑是地上霜。',
+    '举头望明月，',
+    '低头思故乡。',
+    'heng',
     'er 颜色、字号与更多语法',
     'ys#e53935 这一行是红色',
     'ys30,136,229 这一行是蓝色（r,g,b 写法）',
